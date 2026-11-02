@@ -245,15 +245,10 @@
                 </h3>
                 <p class="text-xs text-slate-500">Ingresá el código grabado en su medalla para ver su ficha y contactar a la familia:</p>
                 <div class="flex gap-2">
-                    <input type="text" id="portal-tag-input" placeholder="ej. DEMO-MAX" class="flex-1 px-4 py-3 rounded-2xl border border-slate-200 font-mono text-sm uppercase focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <input type="text" id="portal-tag-input" placeholder="ej. PAW-8A3F92" class="flex-1 px-4 py-3 rounded-2xl border border-slate-200 font-mono text-sm uppercase focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     <button onclick="searchTagFromPortal()" class="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-2xl transition shadow-md">
                         Buscar
                     </button>
-                </div>
-                <div class="pt-2 flex items-center space-x-2 text-xs text-slate-500">
-                    <span>O probá las fichas de muestra:</span>
-                    <a href="?tag=DEMO-MAX" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-lg transition">Max (Seguro)</a>
-                    <a href="?tag=DEMO-LUNA" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold rounded-lg transition">Luna (Perdida)</a>
                 </div>
             </div>
 
@@ -302,6 +297,26 @@
                     </button>
                 </div>
             </div>
+
+            <!-- Empty State when 0 pets registered -->
+            <div id="owner-empty-state" class="hidden bg-white p-8 md:p-12 rounded-3xl text-center shadow-sm border border-slate-200 space-y-4 max-w-lg mx-auto">
+                <div class="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center text-3xl mx-auto shadow-inner">
+                    <i class="fa-solid fa-paw"></i>
+                </div>
+                <h3 class="text-xl font-black text-slate-800">Aún no registraste ninguna mascota</h3>
+                <p class="text-xs text-slate-500 leading-relaxed">
+                    Registrá los datos de tu perro para generar su enlace público, su código QR y programar tu medalla NTAG216.
+                </p>
+                <div class="pt-2">
+                    <button onclick="openAddNewPetModal()" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-2xl transition shadow-md flex items-center space-x-2 mx-auto">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Registrar mi Primer Mascota</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Pet Content Container -->
+            <div id="owner-pet-content" class="space-y-6">
 
             <!-- TAB 1: ACTIVE PET DASHBOARD -->
             <div id="tab-dashboard" class="space-y-6">
@@ -545,6 +560,7 @@
                     </div>
                 </div>
             </div>
+            </div> <!-- End of #owner-pet-content -->
         </div>
 
     </main>
@@ -599,7 +615,6 @@
                     <span id="auth-submit-btn-text">Ingresar a mi Cuenta</span>
                 </button>
             </form>
-            <p class="text-[10px] text-slate-400 text-center">Para demostración inmediata podés usar: <code class="font-bold text-indigo-600">karl@pawtag.ar</code></p>
         </div>
     </div>
 

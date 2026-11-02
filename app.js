@@ -94,7 +94,7 @@ async function loadFinderViewForTag(tagId) {
 }
 
 function renderFinderCard(pet) {
-    document.getElementById('finder-photo').src = pet.photo || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600';
+    document.getElementById('finder-photo').src = pet.photo || 'icons/icon-512.png';
     document.getElementById('finder-name').textContent = pet.name;
     document.getElementById('finder-breed-age').textContent = `${pet.breed || ''} • ${pet.age || ''} • ${pet.gender || ''}`;
     document.getElementById('finder-tag-pill').textContent = pet.tagId;
@@ -223,21 +223,19 @@ async function loadOwnerDashboard() {
 
     ownerPetsList = await window.pawDB.getPetsByOwner();
 
+    const emptyBox = document.getElementById('owner-empty-state');
+    const contentBox = document.getElementById('owner-pet-content');
+
     if (ownerPetsList.length === 0) {
-        // Auto-create a default pet if brand new owner
-        const newPet = await window.pawDB.savePet({
-            tagId: "PAW-" + Math.random().toString(36).substring(2, 8).toUpperCase(),
-            name: "Mi Mascota",
-            breed: "Sin especificar",
-            age: "1 año",
-            gender: "Macho",
-            photo: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600",
-            phone: "+54 9 11 1234-5678",
-            ownerName: user.name || "Dueño",
-            isLost: false
-        });
-        ownerPetsList = [newPet];
+        activeAdminPet = null;
+        if (emptyBox) emptyBox.classList.remove('hidden');
+        if (contentBox) contentBox.classList.add('hidden');
+        renderPetSelector();
+        return;
     }
+
+    if (emptyBox) emptyBox.classList.add('hidden');
+    if (contentBox) contentBox.classList.remove('hidden');
 
     if (!activeAdminPet || !ownerPetsList.find(p => p.tagId === activeAdminPet.tagId)) {
         activeAdminPet = ownerPetsList[0];
@@ -342,8 +340,8 @@ function openAddNewPetModal() {
     document.getElementById('form-pet-name').value = "";
     document.getElementById('form-pet-breed').value = "";
     document.getElementById('form-pet-age').value = "";
-    document.getElementById('form-pet-photo-url').value = "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600";
-    document.getElementById('form-pet-photo-preview').src = "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600";
+    document.getElementById('form-pet-photo-url').value = "";
+    document.getElementById('form-pet-photo-preview').src = "icons/icon-512.png";
     document.getElementById('form-vet-chip').value = "";
     document.getElementById('form-pet-owner').value = window.pawDB.currentUser ? (window.pawDB.currentUser.name || "") : "";
     document.getElementById('form-pet-phone').value = "";
@@ -356,7 +354,7 @@ function openAddNewPetModal() {
 
     switchAdminTab('profile');
     document.getElementById('form-pet-name').focus();
-    triggerToast("Completá los datos para registrar una nueva mascota", "success");
+    triggerToast("Completá los datos de tu perro", "success");
 }
 
 function populateEditForm(pet) {
@@ -388,7 +386,7 @@ async function savePetProfile(event) {
         breed: document.getElementById('form-pet-breed').value.trim(),
         age: document.getElementById('form-pet-age').value.trim(),
         gender: document.getElementById('form-pet-gender').value,
-        photo: document.getElementById('form-pet-photo-url').value.trim() || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600',
+        photo: document.getElementById('form-pet-photo-url').value.trim() || 'icons/icon-512.png',
         vetMicrochip: document.getElementById('form-vet-chip').value.trim(),
         ownerName: document.getElementById('form-pet-owner').value.trim(),
         phone: document.getElementById('form-pet-phone').value.trim(),

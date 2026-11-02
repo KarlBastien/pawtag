@@ -32,7 +32,8 @@ self.addEventListener('fetch', (event) => {
   // Only handle GET requests
   if (event.request.method !== 'GET') return;
 
-  // Stale-while-revalidate for local assets, network-first for external CDNs
+  // Never cache API calls
+  if (event.request.url.includes('api.php')) return;
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
