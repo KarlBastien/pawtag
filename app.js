@@ -1,480 +1,465 @@
 /**
- * PawTag - Real NFC Pet Collar Application Logic
- * Supports:
- * - Dual Mode: Public Finder View vs. Owner Admin Dashboard
- * - Web NFC API (Reading & Writing NDEF URL to physical tags)
- * - Geolocation API (Real GPS location capture and WhatsApp dispatch)
- * - Dynamic QR Code generation for collar tags
- * - Photo upload (File -> Base64 dataURL) & LocalStorage persistence
- * - Data Backup (JSON Export/Import) & Optional Admin PIN security
+ * PawTag - Core Application Controller
+ * Coordinates:
+ * - Dynamic Tag Routing (?tag=TAG_ID) for Public Finders
+ * - Owner Authentication & Multi-Pet Management (CRUD)
+ * - Geolocation GPS Capture & WhatsApp/SMS Dispatch
+ * - Web NFC Read & Write (NDEF URL)
+ * - Dynamic QR Code Generation
  */
 
-// Default Pet Profile
-const DEFAULT_PROFILE = {
-    name: "Max",
-    breed: "Golden Retriever",
-    age: "3 años",
-    gender: "Macho",
-    photo: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600",
-    chipUid: "04:8A:3F:92:B1:80",
-    vetMicrochip: "981098123456789", // Official 15-digit veterinary implant
-    ownerName: "Carlos Bastien",
-    phone: "+54 9 11 4567-8900",
-    phone2: "+54 9 11 9876-5432",
-    whatsapp: "5491145678900",
-    city: "Buenos Aires, Argentina",
-    vetClinic: "Veterinaria Central - Tel: +54 9 11 5555-4321",
-    medicalNotes: "Alérgico al pollo. Castrado y vacunación séxtuple y antirrábica al día.",
-    reward: "Recompensa económica por devolución segura.",
-    isLost: false,
-    adminPin: "", // Optional PIN to protect admin tab
-    lastLocation: "Parque Centenario, Buenos Aires",
-    lastTime: "Recién"
-};
+let currentScannedPet = null; // The pet being viewed by a finder
+let activeAdminPet = null;    // The pet currently selected in owner dashboard
+let ownerPetsList = [];       // List of all pets owned by logged-in user
 
-// Application State
-let appState = {
-    profile: { ...DEFAULT_PROFILE },
-    scanLogs: [
-        {
-            time: "Hoy, 15:30",
-            location: "Parque Centenario, Buenos Aires",
-            coords: "-34.6037, -58.4382",
-            method: "Toque NFC",
-            status: "Normal"
-        },
-        {
-            time: "Ayer, 09:15",
-            location: "Plaza Las Heras, Palermo",
-            coords: "-34.5842, -58.4011",
-            method: "Lectura de Prueba",
-            status: "Normal"
-        }
-    ],
-    currentMode: 'finder' // 'finder' or 'admin'
-};
-
-// Storage Keys
-const STORAGE_KEY = 'pawtag_data_v1';
-
-// Initialize Application
-document.addEventListener('DOMContentLoaded', () => {
-    loadFromStorage();
-    initModeRouting();
-    initPhotoUpload();
-    renderAll();
+// Initialize on Load
+document.addEventListener('DOMContentLoaded', async () => {
+    initAuthListeners();
+    await routeApp();
     registerServiceWorker();
 });
 
-// PWA Service Worker Registration
+// PWA Service Worker
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js')
-                .then(reg => console.log('PawTag Service Worker registrado:', reg.scope))
-                .catch(err => console.log('Error registrando Service Worker:', err));
+        navigator.serviceWorker.register('./sw.js').catch(err => {
+            console.log('SW registration note:', err.message);
         });
     }
 }
 
-// Storage Management
-function loadFromStorage() {
-    try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            if (parsed.profile) appState.profile = { ...DEFAULT_PROFILE, ...parsed.profile };
-            if (parsed.scanLogs) appState.scanLogs = parsed.scanLogs;
-        }
-    } catch (e) {
-        console.error("Error al cargar datos locales:", e);
-    }
-}
-
-function saveToStorage() {
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
-            profile: appState.profile,
-            scanLogs: appState.scanLogs
-        }));
-    } catch (e) {
-        console.error("Error al guardar datos locales:", e);
-    }
-}
-
-// Mode & Route Handling
-function initModeRouting() {
+// Router: Decide what to render based on URL and Auth
+async function routeApp() {
     const urlParams = new URLSearchParams(window.location.search);
     const hash = window.location.hash;
 
-    // If explicit admin parameter or hash is present, or if stored
-    if (urlParams.get('mode') === 'admin' || hash === '#admin') {
-        appState.currentMode = 'admin';
-    } else {
-        // Default to finder view so anyone scanning the tag immediately sees pet emergency info
-        appState.currentMode = 'finder';
+    // Check for tag in query string (?tag=...) or hash (#tag=...)
+    let tagId = urlParams.get('tag') || urlParams.get('id');
+    if (!tagId && hash.startsWith('#tag=')) {
+        tagId = hash.replace('#tag=', '');
     }
-    applyModeView();
+
+    if (tagId) {
+        // Mode 1: Public Finder View for this specific dog
+        await loadFinderViewForTag(tagId);
+    } else if (window.pawDB.currentUser) {
+        // Mode 2: Logged-in Owner Dashboard
+        await loadOwnerDashboard();
+    } else {
+        // Mode 3: Public Portal / Welcome Screen
+        loadPortalView();
+    }
 }
 
-function setViewMode(mode) {
-    if (mode === 'admin' && appState.profile.adminPin) {
-        const enteredPin = prompt("Ingresá el PIN de Administrador (o dejá vacío si no configuraste):");
-        if (enteredPin !== appState.profile.adminPin) {
-            triggerToast("PIN incorrecto", "error");
+// -------------------------------------------------------------
+// 1. PUBLIC FINDER VIEW (When a lost dog's tag is tapped/scanned)
+// -------------------------------------------------------------
+async function loadFinderViewForTag(tagId) {
+    showView('view-finder');
+    updateHeaderBadge('finder', tagId);
+
+    const loader = document.getElementById('finder-loading');
+    const content = document.getElementById('finder-content');
+    const notFound = document.getElementById('finder-not-found');
+
+    loader.classList.remove('hidden');
+    content.classList.add('hidden');
+    notFound.classList.add('hidden');
+
+    try {
+        const pet = await window.pawDB.getPetByTag(tagId);
+        loader.classList.add('hidden');
+
+        if (!pet) {
+            notFound.classList.remove('hidden');
+            document.getElementById('not-found-tag-id').textContent = tagId;
             return;
         }
-    }
 
-    appState.currentMode = mode;
-    if (mode === 'admin') {
-        history.replaceState(null, '', '#admin');
-    } else {
-        history.replaceState(null, '', '#finder');
-    }
-    applyModeView();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+        currentScannedPet = pet;
+        renderFinderCard(pet);
+        content.classList.remove('hidden');
 
-function applyModeView() {
-    const finderView = document.getElementById('view-finder');
-    const adminView = document.getElementById('view-admin');
-    const bottomNav = document.getElementById('bottom-nav');
-    const modeBadge = document.getElementById('header-mode-badge');
-
-    if (appState.currentMode === 'finder') {
-        finderView.classList.remove('hidden');
-        adminView.classList.add('hidden');
-        bottomNav.classList.add('hidden');
-        if (modeBadge) {
-            modeBadge.innerHTML = `<span class="bg-indigo-700/80 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full"><i class="fa-solid fa-eye mr-1"></i>Vista Pública</span>`;
-        }
-    } else {
-        finderView.classList.add('hidden');
-        adminView.classList.remove('hidden');
-        bottomNav.classList.remove('hidden');
-        if (modeBadge) {
-            modeBadge.innerHTML = `<span class="bg-amber-500/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-shield-halved mr-1"></i>Modo Dueño</span>`;
-        }
-    }
-}
-
-// Render UI Elements
-function renderAll() {
-    renderFinderView();
-    renderAdminDashboard();
-    renderProfileForm();
-    renderNfcTools();
-    renderQrSection();
-    renderHistoryList();
-}
-
-// 1. Render Public Finder View (Seen when tag is tapped)
-function renderFinderView() {
-    const p = appState.profile;
-
-    document.getElementById('finder-photo').src = p.photo;
-    document.getElementById('finder-name').textContent = p.name;
-    document.getElementById('finder-breed-age').textContent = `${p.breed} • ${p.age} • ${p.gender}`;
-    document.getElementById('finder-owner-name').textContent = p.ownerName;
-    document.getElementById('finder-city').textContent = p.city || "No especificada";
-    document.getElementById('finder-medical').textContent = p.medicalNotes || "Sin datos médicos especiales.";
-    document.getElementById('finder-chip-display').textContent = p.chipUid || "N/A";
-    document.getElementById('finder-vet-microchip').textContent = p.vetMicrochip || "No registrado";
-
-    // Primary Call Button
-    const callBtn = document.getElementById('finder-call-btn');
-    const cleanPhone = p.phone.replace(/[^0-9+]/g, '');
-    callBtn.href = `tel:${cleanPhone}`;
-    document.getElementById('finder-call-text').textContent = `Llamar a ${p.ownerName} (${p.phone})`;
-
-    // Secondary Call Button
-    const altCallBox = document.getElementById('finder-alt-phone-box');
-    const altCallBtn = document.getElementById('finder-alt-call-btn');
-    if (p.phone2 && p.phone2.trim() !== '') {
-        altCallBox.classList.remove('hidden');
-        altCallBtn.href = `tel:${p.phone2.replace(/[^0-9+]/g, '')}`;
-        document.getElementById('finder-alt-call-text').textContent = `Teléfono Secundario: ${p.phone2}`;
-    } else {
-        altCallBox.classList.add('hidden');
-    }
-
-    // WhatsApp Button
-    const waPhone = p.whatsapp ? p.whatsapp.replace(/[^0-9]/g, '') : cleanPhone.replace(/[^0-9]/g, '');
-    const waText = encodeURIComponent(`¡Hola ${p.ownerName}! Acabo de encontrar a tu perro ${p.name}. Te escribo para coordinar y avisarte que está a salvo.`);
-    const waBtn = document.getElementById('finder-whatsapp-btn');
-    waBtn.href = `https://wa.me/${waPhone}?text=${waText}`;
-
-    // Lost Mode Emergency Banner in Finder
-    const finderHeader = document.getElementById('finder-header-banner');
-    const finderBadge = document.getElementById('finder-status-badge');
-    const finderAlertBox = document.getElementById('finder-lost-alert-box');
-    const finderRewardBox = document.getElementById('finder-reward-box');
-    const finderRewardText = document.getElementById('finder-reward-text');
-
-    if (p.isLost) {
-        finderHeader.className = "bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 text-white p-6 text-center relative overflow-hidden shadow-xl";
-        finderBadge.className = "inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-black bg-white text-rose-600 shadow-md animate-bounce";
-        finderBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>¡ESTOY PERDIDO! AYÚDAME</span>`;
-        finderAlertBox.classList.remove('hidden');
-
-        if (p.reward && p.reward.trim() !== '') {
-            finderRewardBox.classList.remove('hidden');
-            finderRewardText.textContent = p.reward;
-        } else {
-            finderRewardBox.classList.add('hidden');
-        }
-    } else {
-        finderHeader.className = "bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 text-white p-6 text-center relative overflow-hidden shadow-xl";
-        finderBadge.className = "inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500 text-white shadow-md";
-        finderBadge.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>Mascota con Hogar</span>`;
-        finderAlertBox.classList.add('hidden');
-        finderRewardBox.classList.add('hidden');
-    }
-}
-
-// 2. Render Owner Admin Dashboard
-function renderAdminDashboard() {
-    const p = appState.profile;
-
-    document.getElementById('dash-dog-name').textContent = p.name;
-    document.getElementById('dash-dog-breed').textContent = `${p.breed} • ${p.age}`;
-    document.getElementById('dash-dog-photo').src = p.photo;
-    document.getElementById('dash-chip-uid').textContent = p.chipUid;
-    document.getElementById('dash-location-text').textContent = p.lastLocation;
-    document.getElementById('dash-last-time').textContent = p.lastTime;
-
-    const lostBadge = document.getElementById('dash-status-badge');
-    const lostBtn = document.getElementById('admin-toggle-lost-btn');
-    const lostBtnText = document.getElementById('admin-lost-btn-text');
-    const lostBanner = document.getElementById('admin-status-banner');
-    const lostBannerTitle = document.getElementById('admin-banner-title');
-    const lostBannerDesc = document.getElementById('admin-banner-desc');
-    const lostBannerIcon = document.getElementById('admin-banner-icon');
-
-    if (p.isLost) {
-        lostBadge.textContent = "EXTRAVIADO";
-        lostBadge.className = "absolute -bottom-2 -right-2 px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider bg-rose-600 text-white border-2 border-white shadow animate-pulse";
-
-        lostBtn.className = "w-full md:w-auto px-5 py-2.5 bg-white text-rose-700 hover:bg-rose-50 font-bold rounded-xl shadow transition text-xs flex items-center justify-center space-x-2";
-        lostBtnText.textContent = "Marcar como a Salvo";
-
-        lostBanner.className = "bg-gradient-to-r from-rose-600 to-red-700 text-white rounded-3xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between transition-all duration-300";
-        lostBannerIcon.className = "fa-solid fa-triangle-exclamation text-rose-200 text-xl";
-        lostBannerTitle.textContent = "🚨 ¡Alerta de Extravío Activa!";
-        lostBannerDesc.textContent = "Cualquier persona que escanee el tag NFC verá carteles de emergencia en rojo, tu teléfono directo y solicitud de GPS.";
-    } else {
-        lostBadge.textContent = "SEGURO";
-        lostBadge.className = "absolute -bottom-2 -right-2 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-500 text-white border-2 border-white shadow";
-
-        lostBtn.className = "w-full md:w-auto px-5 py-2.5 bg-white text-emerald-800 hover:bg-emerald-50 font-bold rounded-xl shadow transition text-xs flex items-center justify-center space-x-2";
-        lostBtnText.textContent = "Activar Modo Extraviado";
-
-        lostBanner.className = "bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-3xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between transition-all duration-300";
-        lostBannerIcon.className = "fa-solid fa-shield-check text-emerald-100 text-xl";
-        lostBannerTitle.textContent = "Mascota Segura en Casa";
-        lostBannerDesc.textContent = "El tag NFC está en modo pasivo. Quien lo escanee verá la ficha informativa y tus datos de contacto.";
-    }
-
-    // Share URL field
-    const publicUrl = getPublicFinderUrl();
-    const shareInput = document.getElementById('dash-share-url');
-    if (shareInput) shareInput.value = publicUrl;
-}
-
-// 3. Render Profile Form Values
-function renderProfileForm() {
-    const p = appState.profile;
-    document.getElementById('form-name').value = p.name;
-    document.getElementById('form-breed').value = p.breed;
-    document.getElementById('form-age').value = p.age;
-    document.getElementById('form-gender').value = p.gender || "Macho";
-    document.getElementById('form-photo-url').value = p.photo;
-    document.getElementById('form-photo-preview').src = p.photo;
-    document.getElementById('form-chip-uid').value = p.chipUid;
-    document.getElementById('form-vet-chip').value = p.vetMicrochip;
-    document.getElementById('form-owner').value = p.ownerName;
-    document.getElementById('form-phone').value = p.phone;
-    document.getElementById('form-phone2').value = p.phone2 || "";
-    document.getElementById('form-whatsapp').value = p.whatsapp || "";
-    document.getElementById('form-city').value = p.city || "";
-    document.getElementById('form-vet-clinic').value = p.vetClinic || "";
-    document.getElementById('form-medical').value = p.medicalNotes || "";
-    document.getElementById('form-reward').value = p.reward || "";
-    document.getElementById('form-pin').value = p.adminPin || "";
-}
-
-// 4. Render NFC Tools
-function renderNfcTools() {
-    const statusPill = document.getElementById('nfc-support-pill');
-    if (!statusPill) return;
-
-    if ('NDEFReader' in window) {
-        statusPill.innerHTML = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800"><i class="fa-solid fa-circle-check mr-1.5"></i>Web NFC Compatible (Android Chrome)</span>`;
-    } else {
-        statusPill.innerHTML = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>Web NFC no disponible en este navegador</span>`;
-    }
-
-    const targetUrlInput = document.getElementById('nfc-target-url');
-    if (targetUrlInput) targetUrlInput.value = getPublicFinderUrl();
-}
-
-// 5. Render Dynamic QR Code
-function renderQrSection() {
-    const qrContainer = document.getElementById('qrcode-canvas');
-    if (!qrContainer) return;
-    qrContainer.innerHTML = '';
-
-    const publicUrl = getPublicFinderUrl();
-
-    if (window.QRCode) {
-        new QRCode(qrContainer, {
-            text: publicUrl,
-            width: 180,
-            height: 180,
-            colorDark: "#1e1b4b",
-            colorLight: "#ffffff",
-            correctLevel: QRCode.CorrectLevel.H
+        // Log this scan in the background
+        window.pawDB.logScanEvent(tagId, {
+            method: "Escaneo de Tag Público",
+            location: "Acceso Web a Ficha de Mascota"
         });
+    } catch (err) {
+        loader.classList.add('hidden');
+        notFound.classList.remove('hidden');
+        document.getElementById('not-found-tag-id').textContent = tagId;
+        console.error("Error al cargar mascota:", err);
+    }
+}
+
+function renderFinderCard(pet) {
+    document.getElementById('finder-photo').src = pet.photo || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600';
+    document.getElementById('finder-name').textContent = pet.name;
+    document.getElementById('finder-breed-age').textContent = `${pet.breed || ''} • ${pet.age || ''} • ${pet.gender || ''}`;
+    document.getElementById('finder-tag-pill').textContent = pet.tagId;
+    document.getElementById('finder-owner-name').textContent = pet.ownerName || 'Dueño/a';
+    document.getElementById('finder-city').textContent = pet.city || 'No especificada';
+    document.getElementById('finder-medical').textContent = pet.medicalNotes || 'Sin datos médicos especiales.';
+    document.getElementById('finder-vet-microchip').textContent = pet.vetMicrochip || 'No registrado';
+    document.getElementById('finder-clinic').textContent = pet.vetClinic || 'No especificada';
+
+    // Primary Phone Link
+    const callBtn = document.getElementById('finder-call-btn');
+    const cleanPhone = (pet.phone || '').replace(/[^0-9+]/g, '');
+    callBtn.href = `tel:${cleanPhone}`;
+    document.getElementById('finder-call-text').textContent = `Llamar a ${pet.ownerName || 'Dueño'} (${pet.phone || ''})`;
+
+    // Secondary Phone Link
+    const altBox = document.getElementById('finder-alt-phone-box');
+    if (pet.phone2 && pet.phone2.trim() !== '') {
+        altBox.classList.remove('hidden');
+        document.getElementById('finder-alt-call-btn').href = `tel:${pet.phone2.replace(/[^0-9+]/g, '')}`;
+        document.getElementById('finder-alt-call-text').textContent = `Teléfono Alternativo: ${pet.phone2}`;
     } else {
-        // Fallback using SVG generator API
-        const encodedUrl = encodeURIComponent(publicUrl);
-        qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodedUrl}&margin=5" alt="QR Code" class="w-44 h-44 rounded-lg shadow-sm" />`;
+        altBox.classList.add('hidden');
     }
 
-    const shareUrlInput = document.getElementById('share-url-input');
-    if (shareUrlInput) shareUrlInput.value = publicUrl;
-}
+    // WhatsApp Direct Link
+    const waPhone = (pet.whatsapp || cleanPhone).replace(/[^0-9]/g, '');
+    const waText = encodeURIComponent(`¡Hola ${pet.ownerName || ''}! Acabo de escanear el collar de tu perro ${pet.name} (Tag: ${pet.tagId}). Te escribo para avisarte que lo tengo a salvo.`);
+    document.getElementById('finder-whatsapp-btn').href = `https://wa.me/${waPhone}?text=${waText}`;
 
-// 6. Render History List
-function renderHistoryList() {
-    const listEl = document.getElementById('scan-history-list');
-    if (!listEl) return;
-    listEl.innerHTML = '';
+    // Lost Mode Emergency State
+    const headerBanner = document.getElementById('finder-header-banner');
+    const statusBadge = document.getElementById('finder-status-badge');
+    const lostAlertBox = document.getElementById('finder-lost-alert-box');
+    const rewardBox = document.getElementById('finder-reward-box');
 
-    if (appState.scanLogs.length === 0) {
-        listEl.innerHTML = `<p class="text-xs text-slate-400 py-4 text-center">No hay registros de escaneos aún.</p>`;
-        return;
-    }
+    if (pet.isLost) {
+        headerBanner.className = "bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 text-white p-6 text-center relative overflow-hidden shadow-xl";
+        statusBadge.className = "inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-black bg-white text-rose-600 shadow-md animate-bounce";
+        statusBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>¡ESTOY PERDIDO! AYÚDAME</span>`;
+        lostAlertBox.classList.remove('hidden');
 
-    appState.scanLogs.forEach(item => {
-        const div = document.createElement('div');
-        div.className = "flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-100 text-xs hover:bg-slate-100/70 transition";
-        div.innerHTML = `
-            <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
-                    <i class="fa-solid fa-location-dot text-xs"></i>
-                </div>
-                <div>
-                    <p class="font-bold text-slate-800">${escapeHtml(item.location)}</p>
-                    <span class="text-[10px] text-slate-500">${escapeHtml(item.method)} • ${escapeHtml(item.time)} ${item.coords ? `• <a href="https://maps.google.com/?q=${item.coords}" target="_blank" class="text-indigo-600 underline font-mono">Ver mapa</a>` : ''}</span>
-                </div>
-            </div>
-            <span class="px-2.5 py-1 rounded-full text-[10px] font-semibold ${item.status === 'Normal' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${escapeHtml(item.status)}</span>
-        `;
-        listEl.appendChild(div);
-    });
-}
-
-// Helper: Public Finder URL
-function getPublicFinderUrl() {
-    const base = window.location.origin + window.location.pathname;
-    return `${base}#finder`;
-}
-
-// Lost Mode Toggle
-function toggleLostMode() {
-    appState.profile.isLost = !appState.profile.isLost;
-    saveToStorage();
-    renderAll();
-
-    if (appState.profile.isLost) {
-        triggerToast("🚨 ¡Modo Extraviado Activado! La página mostrará alerta de emergencia roja a quien lo escanee.", "error");
+        if (pet.reward && pet.reward.trim() !== '') {
+            rewardBox.classList.remove('hidden');
+            document.getElementById('finder-reward-text').textContent = pet.reward;
+        } else {
+            rewardBox.classList.add('hidden');
+        }
     } else {
-        triggerToast("🎉 ¡Mascota marcada como a salvo! Modo normal restaurado.", "success");
+        headerBanner.className = "bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 text-white p-6 text-center relative overflow-hidden shadow-xl";
+        statusBadge.className = "inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500 text-white shadow-md";
+        statusBadge.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>Mascota Segura</span>`;
+        lostAlertBox.classList.add('hidden');
+        rewardBox.classList.add('hidden');
     }
 }
 
-// Real GPS Sharing from Finder
+// Real GPS Sharing by Finder
 function shareFinderLocation() {
-    const feedbackEl = document.getElementById('finder-gps-feedback');
-    feedbackEl.classList.remove('hidden');
-    feedbackEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Solicitando coordenadas GPS al dispositivo...`;
+    if (!currentScannedPet) return;
+    const feedback = document.getElementById('finder-gps-feedback');
+    feedback.classList.remove('hidden');
+    feedback.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5 text-indigo-600"></i> Obteniendo ubicación GPS precisa...`;
 
     if (!('geolocation' in navigator)) {
-        feedbackEl.innerHTML = `<span class="text-rose-600"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Tu dispositivo no soporta geolocalización.</span>`;
+        feedback.innerHTML = `<div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs">Tu navegador no soporta geolocalización.</div>`;
         return;
     }
 
     navigator.geolocation.getCurrentPosition(
-        (position) => {
-            const lat = position.coords.latitude.toFixed(6);
-            const lng = position.coords.longitude.toFixed(6);
-            const accuracy = Math.round(position.coords.accuracy);
+        (pos) => {
+            const lat = pos.coords.latitude.toFixed(6);
+            const lng = pos.coords.longitude.toFixed(6);
+            const acc = Math.round(pos.coords.accuracy);
             const mapUrl = `https://www.google.com/maps?q=${lat},${lng}`;
             const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            // Record in local log
-            appState.profile.lastLocation = `Lat: ${lat}, Lng: ${lng} (Margen: ±${accuracy}m)`;
-            appState.profile.lastTime = `Hoy, ${timeStr}`;
-            appState.scanLogs.unshift({
-                time: `Hoy, ${timeStr}`,
-                location: `Ubicación GPS Reportada (±${accuracy}m)`,
-                coords: `${lat},${lng}`,
+            window.pawDB.logScanEvent(currentScannedPet.tagId, {
                 method: "GPS Compartido por Quien lo Encontró",
-                status: appState.profile.isLost ? "¡ALERTA PERRO PERDIDO!" : "Aviso GPS"
+                location: `Lat: ${lat}, Lng: ${lng} (±${acc}m)`,
+                coords: `${lat},${lng}`
             });
-            saveToStorage();
 
-            feedbackEl.innerHTML = `
-                <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs space-y-2">
-                    <p class="font-bold flex items-center"><i class="fa-solid fa-circle-check text-emerald-600 mr-1.5"></i> ¡Ubicación GPS capturada con éxito!</p>
-                    <p class="font-mono text-[11px] text-slate-600">Coordenadas: ${lat}, ${lng} (precisión ~${accuracy}m)</p>
-                    <div class="pt-1 flex flex-col sm:flex-row gap-2">
-                        <a href="https://wa.me/${appState.profile.whatsapp || appState.profile.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`¡Hola! Tengo a tu perro ${appState.profile.name}. Mi ubicación exacta en el mapa es: ${mapUrl}`)}" target="_blank" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-center flex items-center justify-center space-x-1 shadow-sm">
-                            <i class="fa-brands fa-whatsapp text-sm"></i>
-                            <span>Enviar Ubicación por WhatsApp</span>
+            const waPhone = (currentScannedPet.whatsapp || currentScannedPet.phone).replace(/[^0-9]/g, '');
+            const waMsg = encodeURIComponent(`¡Hola! Tengo a tu perro ${currentScannedPet.name}. Mi ubicación GPS exacta en el mapa es: ${mapUrl}`);
+
+            feedback.innerHTML = `
+                <div class="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 text-xs space-y-2 mt-2">
+                    <p class="font-bold flex items-center"><i class="fa-solid fa-circle-check text-emerald-600 text-sm mr-1.5"></i> ¡Coordenadas GPS obtenidas!</p>
+                    <p class="text-[11px] font-mono text-slate-600">Lat: ${lat}, Lng: ${lng} (Precisión: ±${acc}m)</p>
+                    <div class="pt-1 flex flex-col gap-2">
+                        <a href="https://wa.me/${waPhone}?text=${waMsg}" target="_blank" class="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-center flex items-center justify-center space-x-1.5 shadow-sm">
+                            <i class="fa-brands fa-whatsapp text-base"></i>
+                            <span>Enviar Ubicación por WhatsApp al Dueño</span>
                         </a>
-                        <a href="sms:${appState.profile.phone.replace(/[^0-9+]/g, '')}?&body=${encodeURIComponent(`Encontré a ${appState.profile.name}. Mi ubicación GPS es: ${mapUrl}`)}" class="px-3 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-lg font-bold text-center flex items-center justify-center space-x-1 shadow-sm">
-                            <i class="fa-solid fa-comment-sms text-sm"></i>
+                        <a href="sms:${(currentScannedPet.phone || '').replace(/[^0-9+]/g, '')}?&body=${encodeURIComponent(`Encontré a ${currentScannedPet.name}. Mi ubicación GPS es: ${mapUrl}`)}" class="w-full py-2 px-3 bg-slate-700 hover:bg-slate-800 text-white rounded-xl font-semibold text-center flex items-center justify-center space-x-1.5">
+                            <i class="fa-solid fa-comment-sms"></i>
                             <span>Enviar por SMS</span>
                         </a>
                     </div>
                 </div>
             `;
-            triggerToast("📍 Ubicación GPS obtenida", "success");
+            triggerToast("📍 Coordenadas GPS obtenidas con éxito", "success");
         },
-        (error) => {
+        (err) => {
             let msg = "No se pudo obtener la ubicación.";
-            if (error.code === error.PERMISSION_DENIED) {
-                msg = "Permiso de ubicación denegado en el navegador. Por favor permití el acceso a la ubicación.";
-            } else if (error.code === error.POSITION_UNAVAILABLE) {
-                msg = "La señal de GPS no está disponible en este momento.";
-            } else if (error.code === error.TIMEOUT) {
-                msg = "Tiempo de espera agotado al obtener el GPS.";
+            if (err.code === err.PERMISSION_DENIED) {
+                msg = "Permiso de ubicación denegado en tu navegador.";
             }
-            feedbackEl.innerHTML = `<div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i> ${msg}</div>`;
+            feedback.innerHTML = `<div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs">${msg}</div>`;
             triggerToast(msg, "error");
         },
-        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
 }
 
-// Real Web NFC API: Write Tag
-async function writePublicUrlToNfc() {
+// -------------------------------------------------------------
+// 2. OWNER ADMIN DASHBOARD (When logged in)
+// -------------------------------------------------------------
+async function loadOwnerDashboard() {
+    showView('view-admin');
+    updateHeaderBadge('owner');
+
+    const user = window.pawDB.currentUser;
+    document.getElementById('header-user-email').textContent = user.email || user.name || "Dueño";
+
+    ownerPetsList = await window.pawDB.getPetsByOwner();
+
+    if (ownerPetsList.length === 0) {
+        // Auto-create a default pet if brand new owner
+        const newPet = await window.pawDB.savePet({
+            tagId: "PAW-" + Math.random().toString(36).substring(2, 8).toUpperCase(),
+            name: "Mi Mascota",
+            breed: "Sin especificar",
+            age: "1 año",
+            gender: "Macho",
+            photo: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600",
+            phone: "+54 9 11 1234-5678",
+            ownerName: user.name || "Dueño",
+            isLost: false
+        });
+        ownerPetsList = [newPet];
+    }
+
+    if (!activeAdminPet || !ownerPetsList.find(p => p.tagId === activeAdminPet.tagId)) {
+        activeAdminPet = ownerPetsList[0];
+    }
+
+    renderPetSelector();
+    renderActivePetDashboard();
+}
+
+function renderPetSelector() {
+    const selector = document.getElementById('pet-selector-dropdown');
+    selector.innerHTML = '';
+
+    ownerPetsList.forEach(pet => {
+        const option = document.createElement('option');
+        option.value = pet.tagId;
+        option.textContent = `${pet.name} (${pet.tagId})${pet.isLost ? ' 🚨 ¡PERDIDO!' : ''}`;
+        if (activeAdminPet && pet.tagId === activeAdminPet.tagId) {
+            option.selected = true;
+        }
+        selector.appendChild(option);
+    });
+}
+
+function onPetSelectChange(event) {
+    const selectedTag = event.target.value;
+    activeAdminPet = ownerPetsList.find(p => p.tagId === selectedTag);
+    renderActivePetDashboard();
+}
+
+function renderActivePetDashboard() {
+    if (!activeAdminPet) return;
+    const pet = activeAdminPet;
+
+    // Header Hero
+    document.getElementById('dash-pet-name').textContent = pet.name;
+    document.getElementById('dash-pet-breed').textContent = `${pet.breed} • ${pet.age}`;
+    document.getElementById('dash-pet-photo').src = pet.photo;
+    document.getElementById('dash-pet-tag').textContent = pet.tagId;
+
+    // Lost Mode Card & Button
+    const banner = document.getElementById('admin-lost-banner');
+    const badge = document.getElementById('dash-status-badge');
+    const btnText = document.getElementById('admin-lost-btn-text');
+
+    if (pet.isLost) {
+        badge.textContent = "EXTRAVIADO";
+        badge.className = "absolute -bottom-2 -right-2 px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider bg-rose-600 text-white border-2 border-white shadow animate-pulse";
+        banner.className = "bg-gradient-to-r from-rose-600 to-red-700 text-white rounded-3xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between transition gap-4";
+        document.getElementById('admin-banner-title').textContent = "🚨 ¡Alerta de Extravío Activa!";
+        document.getElementById('admin-banner-desc').textContent = `Quien escanee el collar de ${pet.name} verá de inmediato la alerta roja de emergencia y tus botones de llamada.`;
+        btnText.textContent = "Marcar como a Salvo";
+    } else {
+        badge.textContent = "SEGURO";
+        badge.className = "absolute -bottom-2 -right-2 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-500 text-white border-2 border-white shadow";
+        banner.className = "bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-3xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between transition gap-4";
+        document.getElementById('admin-banner-title').textContent = "Mascota Segura en Casa";
+        document.getElementById('admin-banner-desc').textContent = `El tag de ${pet.name} está en modo pasivo. Quien lo toque verá la ficha informativa y tus contactos.`;
+        btnText.textContent = "Activar Modo Extraviado";
+    }
+
+    // Public Link
+    const publicUrl = getPetPublicUrl(pet.tagId);
+    document.getElementById('admin-pet-public-url').value = publicUrl;
+
+    // Populate Edit Form
+    populateEditForm(pet);
+
+    // Render NFC & QR tools for this specific pet
+    renderNfcTools(pet);
+    renderQrCode(pet);
+    renderScanLogs(pet.tagId);
+}
+
+function getPetPublicUrl(tagId) {
+    const base = window.location.origin + window.location.pathname;
+    return `${base}?tag=${encodeURIComponent(tagId)}`;
+}
+
+async function toggleActivePetLostMode() {
+    if (!activeAdminPet) return;
+    const newStatus = !activeAdminPet.isLost;
+    await window.pawDB.setLostMode(activeAdminPet.tagId, newStatus);
+    activeAdminPet.isLost = newStatus;
+
+    // Update in ownerPetsList
+    const idx = ownerPetsList.findIndex(p => p.tagId === activeAdminPet.tagId);
+    if (idx !== -1) ownerPetsList[idx].isLost = newStatus;
+
+    renderPetSelector();
+    renderActivePetDashboard();
+
+    if (newStatus) {
+        triggerToast(`🚨 ¡Modo Extraviado Activado para ${activeAdminPet.name}!`, "error");
+    } else {
+        triggerToast(`🎉 ¡${activeAdminPet.name} marcada como a salvo!`, "success");
+    }
+}
+
+function openAddNewPetModal() {
+    document.getElementById('form-pet-tag').value = "PAW-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+    document.getElementById('form-pet-name').value = "";
+    document.getElementById('form-pet-breed').value = "";
+    document.getElementById('form-pet-age').value = "";
+    document.getElementById('form-pet-photo-url').value = "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600";
+    document.getElementById('form-pet-photo-preview').src = "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600";
+    document.getElementById('form-vet-chip').value = "";
+    document.getElementById('form-pet-owner').value = window.pawDB.currentUser ? (window.pawDB.currentUser.name || "") : "";
+    document.getElementById('form-pet-phone').value = "";
+    document.getElementById('form-pet-phone2').value = "";
+    document.getElementById('form-pet-whatsapp').value = "";
+    document.getElementById('form-pet-city').value = "";
+    document.getElementById('form-pet-clinic').value = "";
+    document.getElementById('form-pet-medical').value = "";
+    document.getElementById('form-pet-reward').value = "";
+
+    switchAdminTab('profile');
+    document.getElementById('form-pet-name').focus();
+    triggerToast("Completá los datos para registrar una nueva mascota", "success");
+}
+
+function populateEditForm(pet) {
+    document.getElementById('form-pet-tag').value = pet.tagId;
+    document.getElementById('form-pet-name').value = pet.name || "";
+    document.getElementById('form-pet-breed').value = pet.breed || "";
+    document.getElementById('form-pet-age').value = pet.age || "";
+    document.getElementById('form-pet-gender').value = pet.gender || "Macho";
+    document.getElementById('form-pet-photo-url').value = pet.photo || "";
+    document.getElementById('form-pet-photo-preview').src = pet.photo || "";
+    document.getElementById('form-vet-chip').value = pet.vetMicrochip || "";
+    document.getElementById('form-pet-owner').value = pet.ownerName || "";
+    document.getElementById('form-pet-phone').value = pet.phone || "";
+    document.getElementById('form-pet-phone2').value = pet.phone2 || "";
+    document.getElementById('form-pet-whatsapp').value = pet.whatsapp || "";
+    document.getElementById('form-pet-city').value = pet.city || "";
+    document.getElementById('form-pet-clinic').value = pet.vetClinic || "";
+    document.getElementById('form-pet-medical').value = pet.medicalNotes || "";
+    document.getElementById('form-pet-reward').value = pet.reward || "";
+}
+
+async function savePetProfile(event) {
+    event.preventDefault();
+
+    const tagId = document.getElementById('form-pet-tag').value.trim().toUpperCase();
+    const petData = {
+        tagId,
+        name: document.getElementById('form-pet-name').value.trim(),
+        breed: document.getElementById('form-pet-breed').value.trim(),
+        age: document.getElementById('form-pet-age').value.trim(),
+        gender: document.getElementById('form-pet-gender').value,
+        photo: document.getElementById('form-pet-photo-url').value.trim() || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600',
+        vetMicrochip: document.getElementById('form-vet-chip').value.trim(),
+        ownerName: document.getElementById('form-pet-owner').value.trim(),
+        phone: document.getElementById('form-pet-phone').value.trim(),
+        phone2: document.getElementById('form-pet-phone2').value.trim(),
+        whatsapp: document.getElementById('form-pet-whatsapp').value.trim(),
+        city: document.getElementById('form-pet-city').value.trim(),
+        vetClinic: document.getElementById('form-pet-clinic').value.trim(),
+        medicalNotes: document.getElementById('form-pet-medical').value.trim(),
+        reward: document.getElementById('form-pet-reward').value.trim(),
+        isLost: activeAdminPet ? activeAdminPet.isLost : false
+    };
+
+    try {
+        const saved = await window.pawDB.savePet(petData);
+        activeAdminPet = saved;
+        ownerPetsList = await window.pawDB.getPetsByOwner();
+        renderPetSelector();
+        renderActivePetDashboard();
+        switchAdminTab('dashboard');
+        triggerToast("¡Mascota guardada con éxito!", "success");
+    } catch (err) {
+        triggerToast("Error al guardar: " + err.message, "error");
+    }
+}
+
+async function deleteActivePet() {
+    if (!activeAdminPet) return;
+    if (confirm(`¿Estás seguro de que querés eliminar la ficha de ${activeAdminPet.name} (${activeAdminPet.tagId})?`)) {
+        await window.pawDB.deletePet(activeAdminPet.tagId);
+        ownerPetsList = await window.pawDB.getPetsByOwner();
+        activeAdminPet = ownerPetsList[0] || null;
+        renderPetSelector();
+        renderActivePetDashboard();
+        triggerToast("Mascota eliminada", "success");
+    }
+}
+
+// -------------------------------------------------------------
+// 3. NFC & QR TOOLS
+// -------------------------------------------------------------
+function renderNfcTools(pet) {
+    const pill = document.getElementById('nfc-support-pill');
+    if (!pill) return;
+
+    if ('NDEFReader' in window) {
+        pill.innerHTML = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800"><i class="fa-solid fa-circle-check mr-1.5"></i>Web NFC Compatible (Chrome Android)</span>`;
+    } else {
+        pill.innerHTML = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800"><i class="fa-solid fa-circle-info mr-1.5"></i>Web NFC no disponible en este navegador</span>`;
+    }
+
+    const publicUrl = getPetPublicUrl(pet.tagId);
+    document.getElementById('nfc-target-url').value = publicUrl;
+}
+
+async function writeActivePetToNfc() {
+    if (!activeAdminPet) return;
     const statusBox = document.getElementById('nfc-writer-status');
-    const targetUrl = getPublicFinderUrl();
+    const targetUrl = getPetPublicUrl(activeAdminPet.tagId);
 
     if (!('NDEFReader' in window)) {
         statusBox.classList.remove('hidden');
         statusBox.innerHTML = `
-            <div class="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs space-y-1">
-                <p class="font-bold"><i class="fa-solid fa-circle-info mr-1.5"></i> Web NFC no está disponible en este navegador</p>
-                <p>Para programar el chip NFC con tu teléfono:</p>
-                <ul class="list-disc list-inside space-y-0.5 text-slate-600 mt-1">
-                    <li><strong>En Android:</strong> Usá Google Chrome. Abrí esta app y tocá "Programar Tag NFC".</li>
-                    <li><strong>En iPhone:</strong> Descargá la app gratuita <strong>NFC Tools</strong> en la App Store. Seleccioná <em>Escribir -> Agregar un registro -> URL</em> y pegá tu enlace: <code class="font-mono bg-white px-1 py-0.5 rounded border">${targetUrl}</code></li>
-                </ul>
+            <div class="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 text-xs space-y-2">
+                <p class="font-bold flex items-center"><i class="fa-solid fa-circle-info mr-2 text-amber-600"></i> Web NFC no está disponible en este navegador</p>
+                <p class="text-slate-600">Para programar el chip físico con este enlace:</p>
+                <div class="p-2 bg-white rounded-xl border border-amber-200 font-mono text-[11px] select-all">${targetUrl}</div>
+                <div class="pt-1">
+                    <button onclick="openNfcTroubleshootModal()" class="text-indigo-600 font-bold underline">
+                        Ver guía detallada según tu teléfono (iPhone / Android)
+                    </button>
+                </div>
             </div>
         `;
         return;
@@ -483,294 +468,263 @@ async function writePublicUrlToNfc() {
     try {
         statusBox.classList.remove('hidden');
         statusBox.innerHTML = `
-            <div class="p-4 bg-indigo-50 border border-indigo-200 rounded-xl text-indigo-900 text-xs text-center space-y-2 animate-pulse">
-                <i class="fa-solid fa-wifi text-2xl text-indigo-600"></i>
-                <p class="font-bold text-sm">Acercá el collar/tag NFC a la parte trasera de tu teléfono...</p>
-                <p class="text-indigo-700">Manteniéndolo quieto durante 2 segundos mientras se graba la URL.</p>
+            <div class="p-4 bg-indigo-50 border border-indigo-200 rounded-2xl text-indigo-900 text-xs text-center space-y-2 animate-pulse">
+                <i class="fa-solid fa-wifi text-3xl text-indigo-600"></i>
+                <p class="font-bold text-sm">Acercá la medalla NFC de ${activeAdminPet.name} a la parte trasera de tu teléfono...</p>
+                <p class="text-slate-500">Manteniéndola inmóvil durante 2 segundos.</p>
             </div>
         `;
 
         const ndef = new NDEFReader();
         await ndef.write({
-            records: [
-                {
-                    recordType: "url",
-                    data: targetUrl
-                }
-            ]
+            records: [{ recordType: "url", data: targetUrl }]
         });
 
         statusBox.innerHTML = `
-            <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs text-center space-y-1">
-                <i class="fa-solid fa-circle-check text-2xl text-emerald-600"></i>
-                <p class="font-bold text-sm">¡Tag NFC grabado con éxito!</p>
-                <p class="text-slate-600">Ahora cualquier teléfono que toque este chip abrirá directamente la ficha de ${appState.profile.name}.</p>
+            <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 text-xs text-center space-y-1">
+                <i class="fa-solid fa-circle-check text-3xl text-emerald-600"></i>
+                <p class="font-bold text-sm">¡Chip grabado exitosamente!</p>
+                <p class="text-slate-600">Cualquier celular que toque este collar abrirá de inmediato la ficha de ${activeAdminPet.name}.</p>
             </div>
         `;
-        triggerToast("🎉 ¡Chip NFC programado exitosamente!", "success");
+        triggerToast("🎉 ¡Tag grabado con éxito!", "success");
     } catch (err) {
         statusBox.innerHTML = `
-            <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs">
-                <p class="font-bold"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Error al escribir en el tag NFC</p>
-                <p class="text-rose-700 mt-0.5">${err.message}</p>
+            <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-xs">
+                <p class="font-bold"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Error de NFC: ${err.message}</p>
             </div>
         `;
         triggerToast("Error de NFC: " + err.message, "error");
     }
 }
 
-// Real Web NFC API: Read Tag
-async function scanPhysicalNfcTag() {
-    const statusBox = document.getElementById('nfc-writer-status');
+function renderQrCode(pet) {
+    const container = document.getElementById('qrcode-canvas');
+    if (!container) return;
+    container.innerHTML = '';
 
-    if (!('NDEFReader' in window)) {
-        triggerToast("Web NFC no soportado en este dispositivo/navegador.", "error");
+    const publicUrl = getPetPublicUrl(pet.tagId);
+    if (window.QRCode) {
+        new QRCode(container, {
+            text: publicUrl,
+            width: 170,
+            height: 170,
+            colorDark: "#1e1b4b",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    } else {
+        container.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(publicUrl)}" alt="QR" class="w-40 h-40 rounded-xl" />`;
+    }
+    document.getElementById('qr-share-url').value = publicUrl;
+}
+
+function renderScanLogs(tagId) {
+    const list = document.getElementById('scan-history-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    const logs = window.pawDB.getScanLogs(tagId);
+    if (logs.length === 0) {
+        list.innerHTML = `<p class="text-xs text-slate-400 py-4 text-center">No hay registros de escaneos aún.</p>`;
         return;
     }
 
-    try {
-        statusBox.classList.remove('hidden');
-        statusBox.innerHTML = `
-            <div class="p-4 bg-indigo-50 border border-indigo-200 rounded-xl text-indigo-900 text-xs text-center space-y-2 animate-pulse">
-                <i class="fa-solid fa-mobile-screen text-2xl text-indigo-600"></i>
-                <p class="font-bold text-sm">Acercá el tag NFC para leer su identificador...</p>
-            </div>
-        `;
-
-        const ndef = new NDEFReader();
-        await ndef.scan();
-
-        ndef.onreading = (event) => {
-            const serialNumber = event.serialNumber || "Desconocido";
-            appState.profile.chipUid = serialNumber;
-            document.getElementById('form-chip-uid').value = serialNumber;
-            document.getElementById('dash-chip-uid').textContent = serialNumber;
-            saveToStorage();
-
-            statusBox.innerHTML = `
-                <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs space-y-1">
-                    <p class="font-bold"><i class="fa-solid fa-circle-check text-emerald-600 mr-1.5"></i> ¡Tag NFC detectado!</p>
-                    <p class="font-mono text-slate-700">UID: ${serialNumber}</p>
+    logs.forEach(log => {
+        const div = document.createElement('div');
+        div.className = "flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs";
+        div.innerHTML = `
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-location-dot text-xs"></i>
                 </div>
-            `;
-            triggerToast(`Tag NFC detectado: ${serialNumber}`, "success");
-        };
-
-        ndef.onreadingerror = () => {
-            triggerToast("No se pudo leer el tag NFC. Intentá de nuevo.", "error");
-        };
-    } catch (err) {
-        triggerToast("Error al activar lector NFC: " + err.message, "error");
-    }
-}
-
-// Simulation of Scan (Useful on Desktop / Non-NFC devices)
-function simulateNfcScan() {
-    const sampleZones = [
-        "Plaza Las Heras, Recoleta",
-        "Parque Rivadavia, Caballito",
-        "Av. Libertador y Olleros, Belgrano",
-        "Veterinaria 24hs, Palermo",
-        "Plaza Vicente López, Retiro"
-    ];
-    const loc = sampleZones[Math.floor(Math.random() * sampleZones.length)];
-    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    appState.profile.lastLocation = loc;
-    appState.profile.lastTime = `Hoy, ${timeStr}`;
-    appState.scanLogs.unshift({
-        time: `Hoy, ${timeStr}`,
-        location: loc,
-        coords: "-34.5842, -58.4011",
-        method: "Simulador de Toque NFC",
-        status: appState.profile.isLost ? "¡ALERTA PERRO PERDIDO!" : "Normal"
+                <div>
+                    <p class="font-bold text-slate-800">${escapeHtml(log.location || 'Escaneo')}</p>
+                    <span class="text-[10px] text-slate-400">${escapeHtml(log.method || 'NFC')} • ${new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+            </div>
+            ${log.coords ? `<a href="https://maps.google.com/?q=${log.coords}" target="_blank" class="px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-lg font-bold text-[10px]">Ver mapa</a>` : ''}
+        `;
+        list.appendChild(div);
     });
-
-    saveToStorage();
-    renderAll();
-
-    if (appState.profile.isLost) {
-        triggerToast(`🚨 ¡Tag escaneado en ${loc}! Modo perdido activo.`, "error");
-    } else {
-        triggerToast(`📲 Tag NFC escaneado en ${loc}`, "success");
-    }
 }
 
-// Photo Upload Handler (Local file -> Data URL)
-function initPhotoUpload() {
-    const fileInput = document.getElementById('form-photo-file');
-    const urlInput = document.getElementById('form-photo-url');
-    const preview = document.getElementById('form-photo-preview');
+// -------------------------------------------------------------
+// 4. PORTAL / LANDING VIEW (When opening site root without tag)
+// -------------------------------------------------------------
+function loadPortalView() {
+    showView('view-portal');
+    updateHeaderBadge('portal');
+}
 
-    if (fileInput) {
-        fileInput.addEventListener('change', (e) => {
+function searchTagFromPortal() {
+    const input = document.getElementById('portal-tag-input');
+    const tag = input.value.trim().toUpperCase();
+    if (!tag) {
+        triggerToast("Ingresá un código de tag", "error");
+        return;
+    }
+    window.location.search = `?tag=${encodeURIComponent(tag)}`;
+}
+
+// -------------------------------------------------------------
+// 5. AUTHENTICATION CONTROLLER
+// -------------------------------------------------------------
+function initAuthListeners() {
+    window.onAuthChanged = (user) => {
+        if (user) {
+            document.getElementById('header-auth-btn-text').textContent = "Mi Cuenta";
+        } else {
+            document.getElementById('header-auth-btn-text').textContent = "Iniciar Sesión";
+        }
+    };
+
+    // Photo input listener
+    const photoFile = document.getElementById('form-pet-photo-file');
+    const photoUrl = document.getElementById('form-pet-photo-url');
+    const preview = document.getElementById('form-pet-photo-preview');
+
+    if (photoFile) {
+        photoFile.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-
-            // Compress / convert image to base64 DataURL
             const reader = new FileReader();
-            reader.onload = (event) => {
-                const dataUrl = event.target.result;
-                urlInput.value = dataUrl;
-                preview.src = dataUrl;
-                triggerToast("¡Foto cargada desde tu dispositivo!", "success");
+            reader.onload = (evt) => {
+                photoUrl.value = evt.target.result;
+                preview.src = evt.target.result;
             };
             reader.readAsDataURL(file);
         });
     }
 
-    if (urlInput) {
-        urlInput.addEventListener('input', () => {
-            if (urlInput.value) {
-                preview.src = urlInput.value;
-            }
+    if (photoUrl) {
+        photoUrl.addEventListener('input', () => {
+            if (photoUrl.value) preview.src = photoUrl.value;
         });
     }
 }
 
-// Save Profile Form
-function saveProfile(event) {
-    event.preventDefault();
-
-    const p = appState.profile;
-    p.name = document.getElementById('form-name').value.trim();
-    p.breed = document.getElementById('form-breed').value.trim();
-    p.age = document.getElementById('form-age').value.trim();
-    p.gender = document.getElementById('form-gender').value;
-    p.photo = document.getElementById('form-photo-url').value.trim() || DEFAULT_PROFILE.photo;
-    p.chipUid = document.getElementById('form-chip-uid').value.trim();
-    p.vetMicrochip = document.getElementById('form-vet-chip').value.trim();
-    p.ownerName = document.getElementById('form-owner').value.trim();
-    p.phone = document.getElementById('form-phone').value.trim();
-    p.phone2 = document.getElementById('form-phone2').value.trim();
-    p.whatsapp = document.getElementById('form-whatsapp').value.trim();
-    p.city = document.getElementById('form-city').value.trim();
-    p.vetClinic = document.getElementById('form-vet-clinic').value.trim();
-    p.medicalNotes = document.getElementById('form-medical').value.trim();
-    p.reward = document.getElementById('form-reward').value.trim();
-    p.adminPin = document.getElementById('form-pin').value.trim();
-
-    saveToStorage();
-    renderAll();
-    switchTab('dashboard');
-    triggerToast("¡Perfil guardado correctamente!", "success");
+function openAuthModal() {
+    if (window.pawDB.currentUser) {
+        // Already logged in, go to dashboard
+        loadOwnerDashboard();
+        return;
+    }
+    document.getElementById('auth-modal').classList.remove('hidden');
 }
 
-// Clear History
-function clearHistory() {
-    if (confirm("¿Estás seguro de que querés borrar el historial de escaneos?")) {
-        appState.scanLogs = [];
-        saveToStorage();
-        renderHistoryList();
-        triggerToast("Historial borrado", "success");
+function closeAuthModal() {
+    document.getElementById('auth-modal').classList.add('hidden');
+}
+
+function switchAuthTab(type) {
+    const isLogin = type === 'login';
+    document.getElementById('auth-tab-login').className = isLogin ? "flex-1 py-2 font-bold text-xs border-b-2 border-indigo-600 text-indigo-600" : "flex-1 py-2 font-medium text-xs text-slate-400";
+    document.getElementById('auth-tab-signup').className = !isLogin ? "flex-1 py-2 font-bold text-xs border-b-2 border-indigo-600 text-indigo-600" : "flex-1 py-2 font-medium text-xs text-slate-400";
+    document.getElementById('auth-signup-fields').classList.toggle('hidden', isLogin);
+    document.getElementById('auth-submit-btn-text').textContent = isLogin ? "Ingresar a mi Cuenta" : "Crear mi Cuenta";
+    document.getElementById('auth-form').dataset.mode = type;
+}
+
+async function handleAuthSubmit(event) {
+    event.preventDefault();
+    const mode = document.getElementById('auth-form').dataset.mode || 'login';
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const name = document.getElementById('auth-name').value.trim();
+
+    try {
+        if (mode === 'signup') {
+            await window.pawDB.signUp(email, password, name);
+            triggerToast("¡Cuenta creada con éxito!", "success");
+        } else {
+            await window.pawDB.signIn(email, password);
+            triggerToast("¡Bienvenido/a de nuevo!", "success");
+        }
+        closeAuthModal();
+        window.history.replaceState(null, '', window.location.pathname);
+        await loadOwnerDashboard();
+    } catch (err) {
+        triggerToast(err.message, "error");
     }
 }
 
-// Copy URL
-function copyShareUrl() {
-    const url = getPublicFinderUrl();
-    navigator.clipboard.writeText(url).then(() => {
-        triggerToast("¡Enlace público copiado al portapapeles!", "success");
-    }).catch(() => {
-        const input = document.getElementById('share-url-input');
-        if (input) {
-            input.select();
-            document.execCommand('copy');
-            triggerToast("¡Enlace copiado!", "success");
-        }
+async function handleSignOut() {
+    if (confirm("¿Cerrar sesión de dueño?")) {
+        await window.pawDB.signOut();
+        triggerToast("Sesión cerrada", "success");
+        window.location.search = "";
+    }
+}
+
+// -------------------------------------------------------------
+// 6. MODALS & UI HELPERS
+// -------------------------------------------------------------
+function openNfcTroubleshootModal() {
+    document.getElementById('nfc-help-modal').classList.remove('hidden');
+}
+
+function closeNfcTroubleshootModal() {
+    document.getElementById('nfc-help-modal').classList.add('hidden');
+}
+
+function showView(viewId) {
+    ['view-finder', 'view-admin', 'view-portal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('hidden', id !== viewId);
     });
 }
 
-// Print / Save Collar Tag
-function printCollarCard() {
-    window.print();
-}
-
-// Export Profile to JSON
-function exportData() {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `pawtag_${appState.profile.name.toLowerCase()}_backup.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-    triggerToast("Copia de seguridad descargada", "success");
-}
-
-// Import Profile from JSON
-function importData(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const imported = JSON.parse(e.target.result);
-            if (imported.profile) {
-                appState.profile = { ...DEFAULT_PROFILE, ...imported.profile };
-                if (imported.scanLogs) appState.scanLogs = imported.scanLogs;
-                saveToStorage();
-                renderAll();
-                triggerToast("¡Datos restaurados con éxito!", "success");
-            } else {
-                throw new Error("Formato inválido");
-            }
-        } catch (err) {
-            triggerToast("Error al importar archivo JSON: " + err.message, "error");
-        }
-    };
-    reader.readAsText(file);
-}
-
-// Reset to Default
-function resetDefaultData() {
-    if (confirm("¿Restablecer datos a los valores de ejemplo por defecto? Se perderán los cambios no guardados.")) {
-        appState.profile = { ...DEFAULT_PROFILE };
-        saveToStorage();
-        renderAll();
-        triggerToast("Datos restablecidos a valores por defecto", "success");
-    }
-}
-
-// Admin Tab Switching
-function switchTab(tabId) {
-    ['dashboard', 'profile', 'nfc', 'qr', 'settings'].forEach(t => {
+function switchAdminTab(tabId) {
+    ['dashboard', 'profile', 'nfc', 'qr'].forEach(t => {
         const tabEl = document.getElementById(`tab-${t}`);
-        if (tabEl) tabEl.classList.add('hidden');
+        if (tabEl) tabEl.classList.toggle('hidden', t !== tabId);
         const navBtn = document.getElementById(`nav-btn-${t}`);
         if (navBtn) {
-            navBtn.classList.remove('text-indigo-600');
-            navBtn.classList.add('text-slate-400');
+            navBtn.classList.toggle('text-indigo-600', t === tabId);
+            navBtn.classList.toggle('text-slate-400', t !== tabId);
         }
     });
-
-    const targetTab = document.getElementById(`tab-${tabId}`);
-    if (targetTab) targetTab.classList.remove('hidden');
-
-    const activeNav = document.getElementById(`nav-btn-${tabId}`);
-    if (activeNav) {
-        activeNav.classList.remove('text-slate-400');
-        activeNav.classList.add('text-indigo-600');
-    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// Toast Notification
+function updateHeaderBadge(mode, tagId) {
+    const badge = document.getElementById('header-badge');
+    if (!badge) return;
+
+    if (mode === 'finder') {
+        badge.innerHTML = `<span class="bg-indigo-700 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full"><i class="fa-solid fa-eye mr-1"></i>Ficha: ${tagId}</span>`;
+    } else if (mode === 'owner') {
+        badge.innerHTML = `<span class="bg-amber-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full"><i class="fa-solid fa-shield-halved mr-1"></i>Modo Dueño</span>`;
+    } else {
+        badge.innerHTML = `<span class="bg-indigo-500/80 text-white text-[10px] font-medium px-2 py-0.5 rounded-full">Portal</span>`;
+    }
+}
+
+function copyText(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    navigator.clipboard.writeText(input.value).then(() => {
+        triggerToast("¡Enlace copiado al portapapeles!", "success");
+    }).catch(() => {
+        input.select();
+        document.execCommand('copy');
+        triggerToast("¡Copiado!", "success");
+    });
+}
+
 function triggerToast(message, type = 'success') {
     const toast = document.getElementById('toast');
     if (!toast) return;
 
-    const title = document.getElementById('toast-title');
-    const msg = document.getElementById('toast-message');
     const icon = document.getElementById('toast-icon');
+    const msg = document.getElementById('toast-message');
 
-    toast.className = `fixed top-4 right-4 z-50 max-w-sm w-full p-4 rounded-2xl shadow-xl border flex items-start space-x-3 transition-all duration-300 transform translate-y-0 ${
+    toast.className = `fixed top-4 right-4 z-50 max-w-sm w-full p-4 rounded-2xl shadow-2xl border flex items-start space-x-3 transition-all duration-300 transform translate-y-0 ${
         type === 'error' ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-emerald-50 border-emerald-200 text-emerald-900'
     }`;
 
     icon.innerHTML = type === 'error' ? '<i class="fa-solid fa-triangle-exclamation text-rose-600 text-xl"></i>' : '<i class="fa-solid fa-circle-check text-emerald-600 text-xl"></i>';
-    title.textContent = type === 'error' ? 'Atención' : 'Éxito';
     msg.textContent = message;
 
     toast.classList.remove('hidden');
@@ -785,16 +739,9 @@ function hideToast() {
     if (toast) toast.classList.add('hidden');
 }
 
-// Safe HTML Escape
 function escapeHtml(str) {
     if (!str) return '';
     return String(str).replace(/[&<>"']/g, function (m) {
-        return {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        }[m];
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
     });
 }

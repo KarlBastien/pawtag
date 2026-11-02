@@ -1,7 +1,8 @@
-const CACHE_NAME = 'pawtag-v1.0.0';
+const CACHE_NAME = 'pawtag-v1.1.0';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
+  './db.js',
   './app.js',
   './manifest.json',
   './icons/icon.svg',
