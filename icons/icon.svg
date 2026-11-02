@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#7c3aed" />
+    </linearGradient>
+    <linearGradient id="paw-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#e0e7ff" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#312e81" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Background rounded rect -->
+  <rect width="512" height="512" rx="128" fill="url(#bg-grad)" />
+
+  <!-- NFC Wave Arcs (top right) -->
+  <g stroke="#ffffff" stroke-width="16" stroke-linecap="round" fill="none" opacity="0.85">
+    <path d="M 360 110 A 170 170 0 0 1 430 180" />
+    <path d="M 330 140 A 130 130 0 0 1 390 200" />
+    <path d="M 300 170 A 90 90 0 0 1 350 220" />
+  </g>
+
+  <!-- Paw print (center) -->
+  <g fill="url(#paw-grad)" filter="url(#shadow)" transform="translate(4, 20)">
+    <!-- Main pad -->
+    <path d="M 252 280 C 190 280, 160 320, 175 385 C 185 430, 220 450, 252 450 C 284 450, 319 430, 329 385 C 344 320, 314 280, 252 280 Z" />
+    <!-- Toe 1 (far left) -->
+    <ellipse cx="160" cy="245" rx="30" ry="42" transform="rotate(-25 160 245)" />
+    <!-- Toe 2 (center left) -->
+    <ellipse cx="218" cy="205" rx="30" ry="46" transform="rotate(-8 218 205)" />
+    <!-- Toe 3 (center right) -->
+    <ellipse cx="286" cy="205" rx="30" ry="46" transform="rotate(8 286 205)" />
+    <!-- Toe 4 (far right) -->
+    <ellipse cx="344" cy="245" rx="30" ry="42" transform="rotate(25 344 245)" />
+  </g>
+</svg>
