@@ -414,13 +414,18 @@ async function savePetProfile(event) {
 
 async function deleteActivePet() {
     if (!activeAdminPet) return;
-    if (confirm(`¿Estás seguro de que querés eliminar la ficha de ${activeAdminPet.name} (${activeAdminPet.tagId})?`)) {
-        await window.pawDB.deletePet(activeAdminPet.tagId);
-        ownerPetsList = await window.pawDB.getPetsByOwner();
-        activeAdminPet = ownerPetsList[0] || null;
-        renderPetSelector();
-        renderActivePetDashboard();
-        triggerToast("Mascota eliminada", "success");
+    const petName = activeAdminPet.name || 'esta mascota';
+    const tagId = activeAdminPet.tagId;
+    if (!confirm(`¿Estás seguro de que querés eliminar la ficha de ${petName} (${tagId})?\nEsta acción no se puede deshacer.`)) {
+        return;
+    }
+
+    try {
+        await window.pawDB.deletePet(tagId);
+        triggerToast(`Ficha de ${petName} eliminada correctamente`, "success");
+        await loadOwnerDashboard();
+    } catch (err) {
+        triggerToast("Error al eliminar: " + err.message, "error");
     }
 }
 
@@ -629,30 +634,85 @@ async function handleAuthSubmit(event) {
     const mode = document.getElementById('auth-form').dataset.mode || 'login';
     const email = document.getElementById('auth-email').value.trim();
     const password = document.getElementById('auth-password').value;
-    const name = document.getElementById('auth-name').value.trim();
+    const name = document.getElementById('auth-name').value.trim() || 'Dueño';
+    const submitBtn = document.getElementById('auth-submit-btn-text');
+
+    const origText = submitBtn.textContent;
+    submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Procesando...`;
 
     try {
         if (mode === 'signup') {
             await window.pawDB.signUp(email, password, name);
-            triggerToast("¡Cuenta creada con éxito!", "success");
+            triggerToast("¡Cuenta creada con éxito! Bienvenido/a", "success");
         } else {
             await window.pawDB.signIn(email, password);
-            triggerToast("¡Bienvenido/a de nuevo!", "success");
+            triggerToast("¡Sesión iniciada correctamente!", "success");
         }
         closeAuthModal();
         window.history.replaceState(null, '', window.location.pathname);
         await loadOwnerDashboard();
     } catch (err) {
         triggerToast(err.message, "error");
+    } finally {
+        submitBtn.textContent = origText;
     }
 }
 
 async function handleSignOut() {
     if (confirm("¿Cerrar sesión de dueño?")) {
-        await window.pawDB.signOut();
+        window.pawDB.signOut();
         triggerToast("Sesión cerrada", "success");
         window.location.search = "";
     }
+}
+
+// Bottom Nav Handler: Route or explain feature
+function handleBottomNavClick(tab) {
+    if (tab === 'dashboard') {
+        if (window.pawDB.currentUser) {
+            switchAdminTab('dashboard');
+        } else {
+            showView('view-portal');
+        }
+        return;
+    }
+
+    if (!window.pawDB.currentUser) {
+        openFeatureInfoModal(tab);
+        return;
+    }
+
+    switchAdminTab(tab);
+}
+
+function openFeatureInfoModal(tab) {
+    const modal = document.getElementById('feature-info-modal');
+    const icon = document.getElementById('feature-info-icon');
+    const title = document.getElementById('feature-info-title');
+    const desc = document.getElementById('feature-info-desc');
+
+    if (tab === 'profile') {
+        icon.className = "w-16 h-16 rounded-3xl mx-auto flex items-center justify-center text-3xl shadow-sm bg-indigo-50 text-indigo-600";
+        icon.innerHTML = `<i class="fa-solid fa-dog"></i>`;
+        title.textContent = "Ficha Digital de Mascota";
+        desc.textContent = "La ficha almacena el nombre, foto, teléfonos de contacto, WhatsApp directo, clínica veterinaria y notas médicas de tu perro. Cuando alguien escanee su medalla, verá estos datos al instante para ayudarte a recuperarlo.";
+    } else if (tab === 'nfc') {
+        icon.className = "w-16 h-16 rounded-3xl mx-auto flex items-center justify-center text-3xl shadow-sm bg-emerald-50 text-emerald-600";
+        icon.innerHTML = `<i class="fa-solid fa-microchip"></i>`;
+        title.textContent = "Programador de Medalla NFC";
+        desc.textContent = "Te permite grabar tu medalla inteligente NTAG216 con el perfil de tu perro con un solo toque desde tu teléfono. Cualquier celular moderno podrá leer la medalla automáticamente sin apps.";
+    } else if (tab === 'qr') {
+        icon.className = "w-16 h-16 rounded-3xl mx-auto flex items-center justify-center text-3xl shadow-sm bg-purple-50 text-purple-600";
+        icon.innerHTML = `<i class="fa-solid fa-qrcode"></i>`;
+        title.textContent = "Código QR de Respaldo";
+        desc.textContent = "Genera un código QR de alta resolución con el enlace directo a la ficha de tu mascota para imprimirlo en una tarjeta de respaldo o mandarlo a grabar en la placa del collar.";
+    }
+
+    modal.classList.remove('hidden');
+}
+
+function closeFeatureInfoModal() {
+    document.getElementById('feature-info-modal').classList.add('hidden');
 }
 
 // -------------------------------------------------------------

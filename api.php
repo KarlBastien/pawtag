@@ -18,7 +18,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $DATA_DIR = __DIR__ . '/data';
 if (!is_dir($DATA_DIR)) {
     mkdir($DATA_DIR, 0755, true);
-    // Protect data directory from direct web browser access
     file_put_contents($DATA_DIR . '/.htaccess', "Deny from all\n");
 }
 
@@ -39,9 +38,25 @@ function saveJson($file, $data) {
 }
 
 function getBearerToken() {
-    $headers = getallheaders();
-    if (isset($headers['Authorization']) && preg_match('/Bearer\s(\S+)/', $headers['Authorization'], $matches)) {
+    // 1. Check getallheaders
+    if (function_exists('getallheaders')) {
+        $headers = getallheaders();
+        foreach ($headers as $k => $v) {
+            if (strtolower($k) === 'authorization' && preg_match('/Bearer\s(\S+)/i', $v, $matches)) {
+                return $matches[1];
+            }
+        }
+    }
+    // 2. Check $_SERVER variables (Apache / FastCGI / LiteSpeed)
+    if (!empty($_SERVER['HTTP_AUTHORIZATION']) && preg_match('/Bearer\s(\S+)/i', $_SERVER['HTTP_AUTHORIZATION'], $matches)) {
         return $matches[1];
+    }
+    if (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION']) && preg_match('/Bearer\s(\S+)/i', $_SERVER['REDIRECT_HTTP_AUTHORIZATION'], $matches)) {
+        return $matches[1];
+    }
+    // 3. Fallback to query parameter or body token
+    if (!empty($_GET['token'])) {
+        return trim($_GET['token']);
     }
     return null;
 }
@@ -93,13 +108,13 @@ if ($action === 'register') {
     $name = trim($input['name'] ?? 'Dueño');
 
     if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        sendResponse(false, null, 'Correo electrónico inválido', 400);
+        sendResponse(false, null, 'Ingresá un correo electrónico válido', 400);
     }
-    if (strlen($password) < 6) {
-        sendResponse(false, null, 'La contraseña debe tener al menos 6 caracteres', 400);
+    if (strlen($password) < 4) {
+        sendResponse(false, null, 'La contraseña debe tener al menos 4 caracteres', 400);
     }
     if (isset($users[$email])) {
-        sendResponse(false, null, 'Ya existe una cuenta con este correo', 400);
+        sendResponse(false, null, 'Ya existe una cuenta con este correo. Por favor iniciá sesión.', 400);
     }
 
     $token = bin2hex(random_bytes(32));
@@ -243,7 +258,7 @@ if ($action === 'log_scan') {
     ];
 
     array_unshift($scans, $logEntry);
-    $scans = array_slice($scans, 0, 100); // keep last 100
+    $scans = array_slice($scans, 0, 100);
     saveJson($SCANS_FILE, $scans);
 
     sendResponse(true, $logEntry);
