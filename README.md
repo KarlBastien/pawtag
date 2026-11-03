@@ -50,13 +50,12 @@ There are three main hardware reasons:
 
 ---
 
-## 🚀 Live Deployment on GitHub Pages
+## 🚀 Live Production Deployment
 
-The project is hosted at:
-🔗 **Repository:** [https://github.com/KarlBastien/pawtag](https://github.com/KarlBastien/pawtag)
-🌐 **Live App:** [https://karlbastien.github.io/pawtag/](https://karlbastien.github.io/pawtag/)
+- 🌐 **Primary Live URL:** [https://patatag.krealo.online/](https://patatag.krealo.online/)
+- 🌐 **Alternative Alias:** [https://pawtag.krealo.online/](https://pawtag.krealo.online/)
+- 🔗 **GitHub Repository:** [https://github.com/KarlBastien/pawtag](https://github.com/KarlBastien/pawtag)
 
 ### Quick Test Links:
-- **Max (Safe):** [https://karlbastien.github.io/pawtag/?tag=DEMO-MAX](https://karlbastien.github.io/pawtag/?tag=DEMO-MAX)
-- **Luna (Lost Emergency Mode):** [https://karlbastien.github.io/pawtag/?tag=DEMO-LUNA](https://karlbastien.github.io/pawtag/?tag=DEMO-LUNA)
-- **Portal & Owner Login:** [https://karlbastien.github.io/pawtag/](https://karlbastien.github.io/pawtag/)
+- **Kiwi's Live Emergency Profile:** [https://patatag.krealo.online/?tag=PAW-NSH8MZ](https://patatag.krealo.online/?tag=PAW-NSH8MZ)
+- **Owner Dashboard & Portal:** [https://patatag.krealo.online/](https://patatag.krealo.online/)
