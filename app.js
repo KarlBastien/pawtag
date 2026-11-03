@@ -460,8 +460,13 @@ function renderNfcTools(pet) {
 }
 
 let nfcAbortController = null;
+let nfcWaitingTimer = null;
 
 function cancelNfcWrite() {
+    if (nfcWaitingTimer) {
+        clearTimeout(nfcWaitingTimer);
+        nfcWaitingTimer = null;
+    }
     if (nfcAbortController) {
         try { nfcAbortController.abort(); } catch(e){}
         nfcAbortController = null;
@@ -504,6 +509,25 @@ async function writeActivePetToNfc() {
             try { nfcAbortController.abort(); } catch(e){}
         }
         nfcAbortController = new AbortController();
+        if (nfcWaitingTimer) clearTimeout(nfcWaitingTimer);
+        nfcWaitingTimer = setTimeout(() => {
+            const tipBox = document.getElementById('nfc-waiting-tip');
+            if (tipBox) {
+                tipBox.innerHTML = `
+                    <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-left text-amber-900 text-xs space-y-2">
+                        <p class="font-bold flex items-center text-xs">
+                            <i class="fa-solid fa-circle-question mr-1.5 text-amber-600"></i> ¿Tu chip es nuevo de fábrica (en blanco)?
+                        </p>
+                        <p class="text-[11px] text-slate-600 leading-relaxed">
+                            Los chips recién comprados vienen con memoria virgen sin formato NDEF. Los navegadores web no tienen permisos del sistema operativo para formatear chips vírgenes desde cero.
+                        </p>
+                        <p class="text-[11px] font-semibold text-slate-700">
+                            <strong>Solución rápida (5 seg):</strong> Abrí la app gratuita <strong>NFC Tools</strong> en tu Android ➔ <em>Escribir ➔ Agregar registro ➔ URL</em> ➔ pegá el enlace de Kiwi y apoyá el chip. ¡Queda listo para siempre!
+                        </p>
+                    </div>
+                `;
+            }
+        }, 6000);
 
         statusBox.classList.remove('hidden');
         statusBox.innerHTML = `
@@ -513,6 +537,7 @@ async function writeActivePetToNfc() {
                     <p class="font-bold text-sm">Esperando medalla NFC...</p>
                     <p class="text-slate-600 mt-1">Apoyá la medalla firmemente contra la parte trasera de tu teléfono (junto a las cámaras o en el centro).</p>
                 </div>
+                <div id="nfc-waiting-tip"></div>
                 <div>
                     <button onclick="cancelNfcWrite()" class="px-4 py-1.5 bg-white hover:bg-slate-100 text-slate-600 rounded-xl font-semibold border border-slate-200 shadow-sm transition">
                         Cancelar
@@ -526,6 +551,11 @@ async function writeActivePetToNfc() {
             records: [{ recordType: "url", data: targetUrl }]
         }, { signal: nfcAbortController.signal });
 
+        if (nfcWaitingTimer) {
+            clearTimeout(nfcWaitingTimer);
+            nfcWaitingTimer = null;
+        }
+
         statusBox.innerHTML = `
             <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 text-xs text-center space-y-1">
                 <i class="fa-solid fa-circle-check text-3xl text-emerald-600"></i>
@@ -535,6 +565,10 @@ async function writeActivePetToNfc() {
         `;
         triggerToast("🎉 ¡Tag grabado con éxito!", "success");
     } catch (err) {
+        if (nfcWaitingTimer) {
+            clearTimeout(nfcWaitingTimer);
+            nfcWaitingTimer = null;
+        }
         if (err.name === 'AbortError') return;
         statusBox.innerHTML = `
             <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-xs space-y-2">
