@@ -1,7 +1,7 @@
 {
-  "name": "PawTag - NFC Pet Collar & Safety Tag",
-  "short_name": "PawTag",
-  "description": "Smart NFC Pet Safety Tag with instant finder contact and GPS location sharing.",
+  "name": "PATATAG - Red Inteligente de Collares NFC para Mascotas",
+  "short_name": "PATATAG",
+  "description": "Medalla inteligente de rescate NFC y código QR para mascotas con geolocalización y contacto directo.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

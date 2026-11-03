@@ -1,5 +1,5 @@
 /**
- * PawTag Production Database & Authentication Client
+ * PATATAG Production Database & Authentication Client
  * - Server API communication with robust error propagation
  * - Immediate synchronous session restore
  * - Zero hardcoded demo pets
@@ -14,8 +14,8 @@ class PawTagDB {
     }
 
     restoreLocalSession() {
-        const savedUser = localStorage.getItem('pawtag_current_user');
-        const token = localStorage.getItem('pawtag_auth_token');
+        const savedUser = localStorage.getItem('patatag_current_user') || localStorage.getItem('pawtag_current_user');
+        const token = localStorage.getItem('patatag_auth_token') || localStorage.getItem('pawtag_auth_token');
         if (savedUser && token) {
             try {
                 this.currentUser = JSON.parse(savedUser);
@@ -27,14 +27,14 @@ class PawTagDB {
     }
 
     async verifyServerSession() {
-        const token = localStorage.getItem('pawtag_auth_token');
+        const token = localStorage.getItem('patatag_auth_token') || localStorage.getItem('pawtag_auth_token');
         if (!token) return;
 
         try {
             const res = await this.request('me');
             if (res && res.success && res.data) {
                 this.currentUser = { ...res.data, token };
-                localStorage.setItem('pawtag_current_user', JSON.stringify(this.currentUser));
+                localStorage.setItem('patatag_current_user', JSON.stringify(this.currentUser));
                 if (window.onAuthChanged) window.onAuthChanged(this.currentUser);
             } else {
                 this.signOut();
@@ -45,7 +45,7 @@ class PawTagDB {
     }
 
     async request(action, method = 'GET', body = null) {
-        const token = localStorage.getItem('pawtag_auth_token');
+        const token = localStorage.getItem('patatag_auth_token') || localStorage.getItem('pawtag_auth_token');
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -79,8 +79,10 @@ class PawTagDB {
         }
 
         this.currentUser = res.data;
-        localStorage.setItem('pawtag_auth_token', res.data.token);
-        localStorage.setItem('pawtag_current_user', JSON.stringify(res.data));
+        localStorage.setItem('patatag_auth_token', res.data.token);
+        localStorage.setItem('patatag_current_user', JSON.stringify(res.data));
+        localStorage.removeItem('pawtag_auth_token');
+        localStorage.removeItem('pawtag_current_user');
         if (window.onAuthChanged) window.onAuthChanged(this.currentUser);
         return this.currentUser;
     }
@@ -98,8 +100,10 @@ class PawTagDB {
         }
 
         this.currentUser = res.data;
-        localStorage.setItem('pawtag_auth_token', res.data.token);
-        localStorage.setItem('pawtag_current_user', JSON.stringify(res.data));
+        localStorage.setItem('patatag_auth_token', res.data.token);
+        localStorage.setItem('patatag_current_user', JSON.stringify(res.data));
+        localStorage.removeItem('pawtag_auth_token');
+        localStorage.removeItem('pawtag_current_user');
         if (window.onAuthChanged) window.onAuthChanged(this.currentUser);
         return this.currentUser;
     }
@@ -107,6 +111,8 @@ class PawTagDB {
     // AUTHENTICATION: Sign Out
     signOut() {
         this.currentUser = null;
+        localStorage.removeItem('patatag_auth_token');
+        localStorage.removeItem('patatag_current_user');
         localStorage.removeItem('pawtag_auth_token');
         localStorage.removeItem('pawtag_current_user');
         if (window.onAuthChanged) window.onAuthChanged(null);

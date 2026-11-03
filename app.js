@@ -1,5 +1,5 @@
 /**
- * PawTag - Core Application Controller
+ * PATATAG - Core Application Controller
  * Coordinates:
  * - Dynamic Tag Routing (?tag=TAG_ID) for Public Finders
  * - Owner Authentication & Multi-Pet Management (CRUD)
@@ -57,6 +57,7 @@ async function routeApp() {
 async function loadFinderViewForTag(tagId) {
     showView('view-finder');
     updateHeaderBadge('finder', tagId);
+    syncHeaderAuthUI();
 
     const loader = document.getElementById('finder-loading');
     const content = document.getElementById('finder-content');
@@ -217,6 +218,7 @@ function shareFinderLocation() {
 async function loadOwnerDashboard() {
     showView('view-admin');
     updateHeaderBadge('owner');
+    syncHeaderAuthUI();
 
     const user = window.pawDB.currentUser;
     document.getElementById('header-user-email').textContent = user.email || user.name || "Dueño";
@@ -644,6 +646,7 @@ async function renderScanLogs(tagId) {
 function loadPortalView() {
     showView('view-portal');
     updateHeaderBadge('portal');
+    syncHeaderAuthUI();
 }
 
 function searchTagFromPortal() {
@@ -659,13 +662,22 @@ function searchTagFromPortal() {
 // -------------------------------------------------------------
 // 5. AUTHENTICATION CONTROLLER
 // -------------------------------------------------------------
+function syncHeaderAuthUI() {
+    const authBtn = document.getElementById('header-auth-btn');
+    if (!authBtn) return;
+    if (window.pawDB && window.pawDB.currentUser) {
+        authBtn.classList.add('hidden');
+    } else {
+        authBtn.classList.remove('hidden');
+        const text = document.getElementById('header-auth-btn-text');
+        if (text) text.textContent = "Ingresar";
+    }
+}
+
 function initAuthListeners() {
-    window.onAuthChanged = (user) => {
-        if (user) {
-            document.getElementById('header-auth-btn-text').textContent = "Mi Cuenta";
-        } else {
-            document.getElementById('header-auth-btn-text').textContent = "Iniciar Sesión";
-        }
+    syncHeaderAuthUI();
+    window.onAuthChanged = () => {
+        syncHeaderAuthUI();
     };
 
     // Photo input listener
@@ -771,6 +783,7 @@ async function handleAuthSubmit(event) {
 async function handleSignOut() {
     if (confirm("¿Cerrar sesión de dueño?")) {
         window.pawDB.signOut();
+        syncHeaderAuthUI();
         triggerToast("Sesión cerrada", "success");
         window.location.search = "";
     }
@@ -891,16 +904,9 @@ function switchAdminTab(tabId) {
 }
 
 function updateHeaderBadge(mode, tagId) {
+    // Keep top bar clean and minimal (Logo + PATATAG only)
     const badge = document.getElementById('header-badge');
-    if (!badge) return;
-
-    if (mode === 'finder') {
-        badge.innerHTML = `<span class="bg-indigo-700 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full"><i class="fa-solid fa-eye mr-1"></i>Ficha: ${tagId}</span>`;
-    } else if (mode === 'owner') {
-        badge.innerHTML = `<span class="bg-amber-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full"><i class="fa-solid fa-shield-halved mr-1"></i>Modo Dueño</span>`;
-    } else {
-        badge.innerHTML = `<span class="bg-indigo-500/80 text-white text-[10px] font-medium px-2 py-0.5 rounded-full">Portal</span>`;
-    }
+    if (badge) badge.innerHTML = '';
 }
 
 function copyText(inputId) {

@@ -1,0 +1,35 @@
+/* PATATAG Stylesheet - No inline styles */
+html {
+    scroll-behavior: smooth;
+    box-sizing: border-box;
+    width: 100%;
+    overflow-x: hidden;
+}
+
+*, *:before, *:after {
+    box-sizing: inherit;
+}
+
+body {
+    width: 100%;
+    min-width: 280px;
+    overflow-x: hidden;
+}
+
+/* Responsive safeguards for narrow screens (<= 320px) */
+@media (max-width: 360px) {
+    .xs-full-width {
+        width: 100% !important;
+    }
+}
+
+/* Print Optimization */
+@media print {
+    header, nav, #toast, .no-print {
+        display: none !important;
+    }
+    body {
+        background: #ffffff !important;
+        color: #000000 !important;
+    }
+}
