@@ -518,18 +518,57 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">URL a grabar en el chip:</label>
-                        <input type="text" id="nfc-target-url" readonly class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-mono text-xs text-slate-700">
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-xs font-bold text-slate-700 uppercase">URL a grabar en el chip NTAG216:</label>
+                            <button onclick="copyText('nfc-target-url')" class="text-indigo-600 hover:text-indigo-800 text-xs font-bold flex items-center space-x-1">
+                                <i class="fa-regular fa-copy"></i>
+                                <span>Copiar Enlace</span>
+                            </button>
+                        </div>
+                        <input type="text" id="nfc-target-url" readonly class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 font-mono text-xs text-slate-700 select-all">
+                        <p class="text-[11px] text-slate-500 mt-1">Este es el enlace que se graba en el chip. Cuando alguien acerque su celular al collar de tu perro, el teléfono abrirá su ficha automáticamente.</p>
                     </div>
 
-                    <div class="flex gap-3">
-                        <button onclick="writeActivePetToNfc()" class="flex-1 py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-md shadow-indigo-200 transition flex items-center justify-center space-x-2">
-                            <i class="fa-solid fa-microchip text-base"></i>
-                            <span>Programar Tag NFC Físico</span>
-                        </button>
-                        <button onclick="openNfcTroubleshootModal()" class="py-3.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition">
-                            <i class="fa-solid fa-circle-question mr-1"></i> ¿Por qué no detecta mi chip?
-                        </button>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        <!-- Option A: Android Chrome Web NFC -->
+                        <div class="p-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-3">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm font-bold">
+                                    <i class="fa-brands fa-android"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-xs text-slate-800">Opción 1: Celular Android</h4>
+                                    <p class="text-[10px] text-slate-500">Grabación directa desde Chrome</p>
+                                </div>
+                            </div>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                Si tenés un teléfono Android con NFC activado, podés grabar el chip directamente desde esta página.
+                            </p>
+                            <button onclick="writeActivePetToNfc()" class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-sm transition flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-microchip"></i>
+                                <span>Grabar con 1 Toque (Android)</span>
+                            </button>
+                        </div>
+
+                        <!-- Option B: iPhone / iOS -->
+                        <div class="p-4 bg-indigo-50/70 border border-indigo-200 rounded-2xl space-y-3">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-bold">
+                                    <i class="fa-brands fa-apple"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-xs text-slate-800">Opción 2: iPhone (iOS)</h4>
+                                    <p class="text-[10px] text-slate-500">Con App Gratuita "NFC Tools"</p>
+                                </div>
+                            </div>
+                            <p class="text-xs text-slate-600 leading-relaxed">
+                                Apple bloquea la escritura NFC en navegadores web. Para grabarlo desde un iPhone, se usa la app gratuita <strong>NFC Tools</strong> (1 sola vez).
+                            </p>
+                            <button onclick="openNfcTroubleshootModal()" class="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-sm transition flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-book-open"></i>
+                                <span>Ver Paso a Paso para iPhone</span>
+                            </button>
+                        </div>
                     </div>
 
                     <div id="nfc-writer-status" class="hidden"></div>

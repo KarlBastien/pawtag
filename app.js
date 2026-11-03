@@ -459,6 +459,18 @@ function renderNfcTools(pet) {
     document.getElementById('nfc-target-url').value = publicUrl;
 }
 
+let nfcAbortController = null;
+
+function cancelNfcWrite() {
+    if (nfcAbortController) {
+        try { nfcAbortController.abort(); } catch(e){}
+        nfcAbortController = null;
+    }
+    const statusBox = document.getElementById('nfc-writer-status');
+    if (statusBox) statusBox.classList.add('hidden');
+    triggerToast("Operación NFC cancelada", "info");
+}
+
 async function writeActivePetToNfc() {
     if (!activeAdminPet) return;
     const statusBox = document.getElementById('nfc-writer-status');
@@ -467,13 +479,19 @@ async function writeActivePetToNfc() {
     if (!('NDEFReader' in window)) {
         statusBox.classList.remove('hidden');
         statusBox.innerHTML = `
-            <div class="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 text-xs space-y-2">
-                <p class="font-bold flex items-center"><i class="fa-solid fa-circle-info mr-2 text-amber-600"></i> Web NFC no está disponible en este navegador</p>
-                <p class="text-slate-600">Para programar el chip físico con este enlace:</p>
-                <div class="p-2 bg-white rounded-xl border border-amber-200 font-mono text-[11px] select-all">${targetUrl}</div>
+            <div class="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 text-xs space-y-2.5">
+                <p class="font-bold flex items-center text-sm"><i class="fa-solid fa-circle-info mr-2 text-amber-600"></i> Web NFC no disponible en este dispositivo/navegador</p>
+                <p class="text-slate-600 leading-relaxed">
+                    Las computadoras (Mac/PC) y los navegadores de iPhone no permiten escribir directamente en chips NFC.
+                </p>
+                <p class="font-semibold text-slate-800">Para grabar tu medalla NTAG216:</p>
+                <div class="p-2.5 bg-white rounded-xl border border-amber-200 font-mono text-[11px] flex items-center justify-between">
+                    <span class="truncate mr-2">${targetUrl}</span>
+                    <button onclick="copyText('nfc-target-url')" class="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded font-sans font-bold text-[10px] shrink-0">Copiar</button>
+                </div>
                 <div class="pt-1">
-                    <button onclick="openNfcTroubleshootModal()" class="text-indigo-600 font-bold underline">
-                        Ver guía detallada según tu teléfono (iPhone / Android)
+                    <button onclick="openNfcTroubleshootModal()" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition">
+                        Ver Guía Paso a Paso para iPhone y Android
                     </button>
                 </div>
             </div>
@@ -482,19 +500,31 @@ async function writeActivePetToNfc() {
     }
 
     try {
+        if (nfcAbortController) {
+            try { nfcAbortController.abort(); } catch(e){}
+        }
+        nfcAbortController = new AbortController();
+
         statusBox.classList.remove('hidden');
         statusBox.innerHTML = `
-            <div class="p-4 bg-indigo-50 border border-indigo-200 rounded-2xl text-indigo-900 text-xs text-center space-y-2 animate-pulse">
-                <i class="fa-solid fa-wifi text-3xl text-indigo-600"></i>
-                <p class="font-bold text-sm">Acercá la medalla NFC de ${activeAdminPet.name} a la parte trasera de tu teléfono...</p>
-                <p class="text-slate-500">Manteniéndola inmóvil durante 2 segundos.</p>
+            <div class="p-4 bg-indigo-50 border border-indigo-200 rounded-2xl text-indigo-900 text-xs text-center space-y-3">
+                <i class="fa-solid fa-wifi text-3xl text-indigo-600 animate-pulse"></i>
+                <div>
+                    <p class="font-bold text-sm">Esperando medalla NFC...</p>
+                    <p class="text-slate-600 mt-1">Apoyá la medalla firmemente contra la parte trasera de tu teléfono (junto a las cámaras o en el centro).</p>
+                </div>
+                <div>
+                    <button onclick="cancelNfcWrite()" class="px-4 py-1.5 bg-white hover:bg-slate-100 text-slate-600 rounded-xl font-semibold border border-slate-200 shadow-sm transition">
+                        Cancelar
+                    </button>
+                </div>
             </div>
         `;
 
         const ndef = new NDEFReader();
         await ndef.write({
             records: [{ recordType: "url", data: targetUrl }]
-        });
+        }, { signal: nfcAbortController.signal });
 
         statusBox.innerHTML = `
             <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 text-xs text-center space-y-1">
@@ -505,9 +535,14 @@ async function writeActivePetToNfc() {
         `;
         triggerToast("🎉 ¡Tag grabado con éxito!", "success");
     } catch (err) {
+        if (err.name === 'AbortError') return;
         statusBox.innerHTML = `
-            <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-xs">
-                <p class="font-bold"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Error de NFC: ${err.message}</p>
+            <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-xs space-y-2">
+                <p class="font-bold"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i> No se pudo grabar el chip: ${err.message}</p>
+                <p class="text-[11px] text-slate-600">Verificá que el NFC de tu teléfono esté encendido en Ajustes y que la funda del celular no sea metálica o magnética.</p>
+                <button onclick="openNfcTroubleshootModal()" class="text-indigo-600 font-bold underline text-[11px]">
+                    Ver soluciones frecuentes
+                </button>
             </div>
         `;
         triggerToast("Error de NFC: " + err.message, "error");
