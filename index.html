@@ -488,13 +488,18 @@
                             </div>
                         </div>
 
-                        <div class="flex items-center justify-between pt-4 border-t border-slate-100">
-                            <button type="button" onclick="deleteActivePet()" class="px-4 py-2.5 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold transition">
-                                <i class="fa-solid fa-trash mr-1"></i> Eliminar esta Mascota
-                            </button>
+                        <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                            <div class="flex items-center space-x-2">
+                                <button type="button" id="form-delete-pet-btn" onclick="deleteActivePet()" class="px-4 py-2.5 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold transition">
+                                    <i class="fa-solid fa-trash mr-1"></i> Eliminar esta Mascota
+                                </button>
+                                <button type="button" onclick="switchAdminTab('dashboard')" class="px-4 py-2.5 text-slate-500 hover:text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-100 transition">
+                                    Cancelar
+                                </button>
+                            </div>
                             <button type="submit" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-md transition flex items-center space-x-2">
                                 <i class="fa-solid fa-floppy-disk"></i>
-                                <span>Guardar Cambios</span>
+                                <span>Guardar Mascota</span>
                             </button>
                         </div>
                     </form>

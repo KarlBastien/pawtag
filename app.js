@@ -336,10 +336,17 @@ async function toggleActivePetLostMode() {
 }
 
 function openAddNewPetModal() {
+    activeAdminPet = null;
+    const emptyBox = document.getElementById('owner-empty-state');
+    const contentBox = document.getElementById('owner-pet-content');
+    if (emptyBox) emptyBox.classList.add('hidden');
+    if (contentBox) contentBox.classList.remove('hidden');
+
     document.getElementById('form-pet-tag').value = "PAW-" + Math.random().toString(36).substring(2, 8).toUpperCase();
     document.getElementById('form-pet-name').value = "";
     document.getElementById('form-pet-breed').value = "";
     document.getElementById('form-pet-age').value = "";
+    document.getElementById('form-pet-gender').value = "Macho";
     document.getElementById('form-pet-photo-url').value = "";
     document.getElementById('form-pet-photo-preview').src = "icons/icon-512.png";
     document.getElementById('form-vet-chip').value = "";
@@ -351,6 +358,9 @@ function openAddNewPetModal() {
     document.getElementById('form-pet-clinic').value = "";
     document.getElementById('form-pet-medical').value = "";
     document.getElementById('form-pet-reward').value = "";
+
+    const delBtn = document.getElementById('form-delete-pet-btn');
+    if (delBtn) delBtn.classList.add('hidden');
 
     switchAdminTab('profile');
     document.getElementById('form-pet-name').focus();
@@ -374,6 +384,9 @@ function populateEditForm(pet) {
     document.getElementById('form-pet-clinic').value = pet.vetClinic || "";
     document.getElementById('form-pet-medical').value = pet.medicalNotes || "";
     document.getElementById('form-pet-reward').value = pet.reward || "";
+
+    const delBtn = document.getElementById('form-delete-pet-btn');
+    if (delBtn) delBtn.classList.remove('hidden');
 }
 
 async function savePetProfile(event) {
@@ -593,8 +606,32 @@ function initAuthListeners() {
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (evt) => {
-                photoUrl.value = evt.target.result;
-                preview.src = evt.target.result;
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_SIZE = 800;
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > height) {
+                        if (width > MAX_SIZE) {
+                            height = Math.round(height * (MAX_SIZE / width));
+                            width = MAX_SIZE;
+                        }
+                    } else {
+                        if (height > MAX_SIZE) {
+                            width = Math.round(width * (MAX_SIZE / height));
+                            height = MAX_SIZE;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const compressed = canvas.toDataURL('image/jpeg', 0.85);
+                    photoUrl.value = compressed;
+                    preview.src = compressed;
+                };
+                img.src = evt.target.result;
             };
             reader.readAsDataURL(file);
         });
@@ -682,6 +719,11 @@ function handleBottomNavClick(tab) {
         return;
     }
 
+    if (tab === 'profile' && (!ownerPetsList || ownerPetsList.length === 0)) {
+        openAddNewPetModal();
+        return;
+    }
+
     switchAdminTab(tab);
 }
 
@@ -734,6 +776,35 @@ function showView(viewId) {
 }
 
 function switchAdminTab(tabId) {
+    const emptyBox = document.getElementById('owner-empty-state');
+    const contentBox = document.getElementById('owner-pet-content');
+
+    if (!ownerPetsList || ownerPetsList.length === 0) {
+        if (tabId === 'profile') {
+            if (emptyBox) emptyBox.classList.add('hidden');
+            if (contentBox) contentBox.classList.remove('hidden');
+        } else {
+            if (tabId === 'nfc' || tabId === 'qr') {
+                triggerToast("Primero registrá los datos de tu mascota", "info");
+                openAddNewPetModal();
+                return;
+            }
+            if (emptyBox) emptyBox.classList.remove('hidden');
+            if (contentBox) contentBox.classList.add('hidden');
+            ['dashboard', 'profile', 'nfc', 'qr'].forEach(t => {
+                const navBtn = document.getElementById(`nav-btn-${t}`);
+                if (navBtn) {
+                    navBtn.classList.toggle('text-indigo-600', t === 'dashboard');
+                    navBtn.classList.toggle('text-slate-400', t !== 'dashboard');
+                }
+            });
+            return;
+        }
+    } else {
+        if (emptyBox) emptyBox.classList.add('hidden');
+        if (contentBox) contentBox.classList.remove('hidden');
+    }
+
     ['dashboard', 'profile', 'nfc', 'qr'].forEach(t => {
         const tabEl = document.getElementById(`tab-${t}`);
         if (tabEl) tabEl.classList.toggle('hidden', t !== tabId);
