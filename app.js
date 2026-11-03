@@ -242,7 +242,7 @@ async function loadOwnerDashboard() {
     }
 
     renderPetSelector();
-    renderActivePetDashboard();
+    await renderActivePetDashboard();
 }
 
 function renderPetSelector() {
@@ -260,13 +260,13 @@ function renderPetSelector() {
     });
 }
 
-function onPetSelectChange(event) {
+async function onPetSelectChange(event) {
     const selectedTag = event.target.value;
     activeAdminPet = ownerPetsList.find(p => p.tagId === selectedTag);
-    renderActivePetDashboard();
+    await renderActivePetDashboard();
 }
 
-function renderActivePetDashboard() {
+async function renderActivePetDashboard() {
     if (!activeAdminPet) return;
     const pet = activeAdminPet;
 
@@ -307,7 +307,7 @@ function renderActivePetDashboard() {
     // Render NFC & QR tools for this specific pet
     renderNfcTools(pet);
     renderQrCode(pet);
-    renderScanLogs(pet.tagId);
+    await renderScanLogs(pet.tagId);
 }
 
 function getPetPublicUrl(tagId) {
@@ -417,7 +417,7 @@ async function savePetProfile(event) {
         activeAdminPet = saved;
         ownerPetsList = await window.pawDB.getPetsByOwner();
         renderPetSelector();
-        renderActivePetDashboard();
+        await renderActivePetDashboard();
         switchAdminTab('dashboard');
         triggerToast("¡Mascota guardada con éxito!", "success");
     } catch (err) {
@@ -535,34 +535,38 @@ function renderQrCode(pet) {
     document.getElementById('qr-share-url').value = publicUrl;
 }
 
-function renderScanLogs(tagId) {
+async function renderScanLogs(tagId) {
     const list = document.getElementById('scan-history-list');
     if (!list) return;
     list.innerHTML = '';
 
-    const logs = window.pawDB.getScanLogs(tagId);
-    if (logs.length === 0) {
-        list.innerHTML = `<p class="text-xs text-slate-400 py-4 text-center">No hay registros de escaneos aún.</p>`;
-        return;
-    }
+    try {
+        const logs = await window.pawDB.getScanLogs(tagId);
+        if (!Array.isArray(logs) || logs.length === 0) {
+            list.innerHTML = `<p class="text-xs text-slate-400 py-4 text-center">No hay registros de escaneos aún.</p>`;
+            return;
+        }
 
-    logs.forEach(log => {
-        const div = document.createElement('div');
-        div.className = "flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs";
-        div.innerHTML = `
-            <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
-                    <i class="fa-solid fa-location-dot text-xs"></i>
+        logs.forEach(log => {
+            const div = document.createElement('div');
+            div.className = "flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs";
+            div.innerHTML = `
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-location-dot text-xs"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-slate-800">${escapeHtml(log.location || 'Escaneo')}</p>
+                        <span class="text-[10px] text-slate-400">${escapeHtml(log.method || 'NFC')} • ${new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
                 </div>
-                <div>
-                    <p class="font-bold text-slate-800">${escapeHtml(log.location || 'Escaneo')}</p>
-                    <span class="text-[10px] text-slate-400">${escapeHtml(log.method || 'NFC')} • ${new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-            </div>
-            ${log.coords ? `<a href="https://maps.google.com/?q=${log.coords}" target="_blank" class="px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-lg font-bold text-[10px]">Ver mapa</a>` : ''}
-        `;
-        list.appendChild(div);
-    });
+                ${log.coords ? `<a href="https://maps.google.com/?q=${log.coords}" target="_blank" class="px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-lg font-bold text-[10px]">Ver mapa</a>` : ''}
+            `;
+            list.appendChild(div);
+        });
+    } catch (e) {
+        list.innerHTML = `<p class="text-xs text-slate-400 py-4 text-center">No hay registros de escaneos aún.</p>`;
+    }
 }
 
 // -------------------------------------------------------------
