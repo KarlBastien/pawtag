@@ -52,10 +52,10 @@ There are three main hardware reasons:
 
 ## 🚀 Live Production Deployment
 
-- 🌐 **Primary Live URL:** [https://patatag.krealo.online/](https://patatag.krealo.online/)
-- 🌐 **Alternative Alias:** [https://pawtag.krealo.online/](https://pawtag.krealo.online/)
+- 🌐 **Primary Live URL:** [https://lazo.krealo.online/](https://lazo.krealo.online/)
+- 🌐 **Alternative Aliases:** [https://patatag.krealo.online/](https://patatag.krealo.online/) | [https://pawtag.krealo.online/](https://pawtag.krealo.online/)
 - 🔗 **GitHub Repository:** [https://github.com/KarlBastien/pawtag](https://github.com/KarlBastien/pawtag)
 
 ### Quick Test Links:
-- **Kiwi's Live Emergency Profile:** [https://patatag.krealo.online/?tag=PAW-NSH8MZ](https://patatag.krealo.online/?tag=PAW-NSH8MZ)
-- **Owner Dashboard & Portal:** [https://patatag.krealo.online/](https://patatag.krealo.online/)
+- **Kiwi's Live Emergency Profile:** [https://lazo.krealo.online/?tag=PAW-NSH8MZ](https://lazo.krealo.online/?tag=PAW-NSH8MZ)
+- **Owner Dashboard & Portal:** [https://lazo.krealo.online/](https://lazo.krealo.online/)
