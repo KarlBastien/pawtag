@@ -1,7 +1,7 @@
 <?php
 /**
- * PawTag Production Backend API
- * Secure multi-pet storage & owner authentication for krealo.online/pawtag
+ * LAZO Production Backend API
+ * Secure multi-pet storage & owner authentication
  */
 
 header('Content-Type: application/json; charset=UTF-8');
@@ -192,7 +192,7 @@ if ($action === 'save_pet') {
     $petData = $input['pet'] ?? [];
     $tagId = strtoupper(trim($petData['tagId'] ?? ''));
     if (!$tagId) {
-        $tagId = 'PAW-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 6));
+        $tagId = 'LAZO-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 6));
     }
 
     // Check if tag is already taken by another owner

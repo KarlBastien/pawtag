@@ -4,13 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PATATAG - Red Inteligente de Collares NFC para Mascotas</title>
+    <title>LAZO - Red Inteligente de Collares NFC para Mascotas</title>
 
     <!-- PWA & Mobile Meta Tags -->
-    <meta name="application-name" content="PATATAG">
+    <meta name="application-name" content="LAZO">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="PATATAG">
+    <meta name="apple-mobile-web-app-title" content="LAZO">
     <meta name="theme-color" content="#4f46e5">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -59,7 +59,7 @@
                 <div class="w-8 h-8 rounded-xl bg-white text-indigo-600 flex items-center justify-center font-black text-base shadow-sm">
                     <i class="fa-solid fa-paw"></i>
                 </div>
-                <span class="font-black text-base sm:text-lg tracking-wider uppercase text-white">PATATAG</span>
+                <span class="font-black text-base sm:text-lg tracking-wider uppercase text-white">LAZO</span>
             </a>
 
             <!-- Quick Action: Auth Button (Only visible when logged out) -->
@@ -217,7 +217,7 @@
                 <div class="w-16 h-16 bg-indigo-600 text-white rounded-3xl flex items-center justify-center text-3xl mx-auto shadow-xl shadow-indigo-600/20">
                     <i class="fa-solid fa-paw"></i>
                 </div>
-                <h2 class="text-3xl font-black text-slate-900 tracking-tight">PATATAG</h2>
+                <h2 class="text-3xl font-black text-slate-900 tracking-tight">LAZO</h2>
                 <p class="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
                     Sistema inteligente de rescate e identificación de mascotas mediante medallas NFC y códigos QR.
                 </p>
@@ -226,11 +226,11 @@
             <!-- Search by Tag Card -->
             <div class="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl border border-slate-200 space-y-4">
                 <h3 class="font-bold text-sm text-slate-800 flex items-center">
-                    <i class="fa-solid fa-magnifying-glass text-indigo-600 mr-2"></i> ¿Encontraste un perro con medalla PATATAG?
+                    <i class="fa-solid fa-magnifying-glass text-indigo-600 mr-2"></i> ¿Encontraste un perro con medalla LAZO?
                 </h3>
                 <p class="text-xs text-slate-500">Ingresá el código grabado en su medalla para ver su ficha y contactar a la familia:</p>
                 <div class="flex flex-col sm:flex-row gap-2 w-full">
-                    <input type="text" id="portal-tag-input" placeholder="ej. PAW-8A3F92" class="w-full min-w-0 flex-1 px-3.5 py-3 rounded-xl sm:rounded-2xl border border-slate-200 font-mono text-sm uppercase focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <input type="text" id="portal-tag-input" placeholder="ej. LAZO-8A3F92" class="w-full min-w-0 flex-1 px-3.5 py-3 rounded-xl sm:rounded-2xl border border-slate-200 font-mono text-sm uppercase focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     <button onclick="searchTagFromPortal()" class="w-full sm:w-auto px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl sm:rounded-2xl transition shadow-md shrink-0">
                         Buscar
                     </button>
@@ -692,7 +692,7 @@
                         <strong>Los smartphones NO pueden escanear el chip subcutáneo bajo la piel.</strong> Los microchips veterinarios operan en <strong>134.2 kHz (Baja Frecuencia LF)</strong>, mientras que los celulares solo tienen antenas NFC de <strong>13.56 MHz (Alta Frecuencia HF)</strong>. Son frecuencias físicamente incompatibles.
                     </p>
                     <p class="text-[11px] text-slate-500">
-                        <em>Solución:</em> El chip inyectado se lee con el escáner del veterinario. PATATAG muestra el número de 15 dígitos en pantalla para que el veterinario lo coteje.
+                        <em>Solución:</em> El chip inyectado se lee con el escáner del veterinario. LAZO muestra el número de 15 dígitos en pantalla para que el veterinario lo coteje.
                     </p>
                 </div>
 
@@ -731,7 +731,7 @@
         </div>
     </div>
 
-    <!-- PATATAG Application Logic -->
+    <!-- LAZO Application Logic -->
     <script src="db.js"></script>
     <script src="app.js"></script>
 </body>

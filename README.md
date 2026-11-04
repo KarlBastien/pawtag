@@ -1,6 +1,6 @@
-# 🐾 PawTag - Multi-Pet NFC Collar & Safety Platform (PWA)
+# 🐾 LAZO - Multi-Pet NFC Collar & Safety Platform (PWA)
 
-PawTag is a production-grade Progressive Web App (PWA) designed to manage smart NFC collar tags for hundreds of pets. Each pet has its own scannable tag identifier (`?tag=TAG_ID`), allowing any finder to view that pet's emergency profile while keeping the owner's management dashboard securely authenticated.
+LAZO is a production-grade Progressive Web App (PWA) designed to manage smart NFC collar tags for hundreds of pets. Each pet has its own scannable tag identifier (`?tag=TAG_ID`), allowing any finder to view that pet's emergency profile while keeping the owner's management dashboard securely authenticated.
 
 ---
 
@@ -8,9 +8,9 @@ PawTag is a production-grade Progressive Web App (PWA) designed to manage smart 
 
 ### 1. Why am I seeing a default dog?
 The previous version used single-browser `localStorage`. The new version is a **Multi-Pet Cloud Platform**:
-- Each pet is saved with a unique tag ID (e.g. `?tag=DEMO-MAX` or `?tag=PAW-8A3F92`).
+- Each pet is saved with a unique tag ID (e.g. `?tag=LAZO-8A3F92` or `?tag=PAW-NSH8MZ`).
 - When someone scans a physical collar, their phone queries that specific tag and loads **only that dog's live information**.
-- If opening the main root website without any tag, it displays the PawTag search portal instead of a hardcoded dog.
+- If opening the main root website without any tag, it displays the LAZO search portal instead of a hardcoded dog.
 
 ### 2. Can strangers access the Admin Dashboard?
 **No.** The Finder View contains **zero admin controls** and no editing capabilities. Only logged-in owners (via Email/Password or demo authentication) can access the management dashboard to create, edit, or delete their pets.
@@ -18,7 +18,7 @@ The previous version used single-browser `localStorage`. The new version is a **
 ### 3. Why is the NFC scanner not detecting my chip?
 There are three main hardware reasons:
 1. **Subcutaneous Vet Microchip (injected under skin):**
-   - **Phones CANNOT read this.** Veterinary chips operate on **134.2 kHz Low Frequency (LF) RFID**. Smartphones only have **13.56 MHz High Frequency (HF) NFC** antennas. No app or website can change this frequency gap. PawTag displays the official 15-digit microchip number on screen so any vet can check it with their clinic scanner.
+   - **Phones CANNOT read this.** Veterinary chips operate on **134.2 kHz Low Frequency (LF) RFID**. Smartphones only have **13.56 MHz High Frequency (HF) NFC** antennas. No app or website can change this frequency gap. LAZO displays the official 15-digit microchip number on screen so any vet can check it with their clinic scanner.
 2. **iPhone / iOS Apple Restriction:**
    - Apple **blocks Web NFC inside mobile browsers** (Safari and Chrome on iOS).
    - iPhones read NFC from the lock/home screen automatically, but **only if the tag already has an NDEF URL written to it**. If your tag is fresh from the factory, download the free **NFC Tools** app from the App Store, write your pet's URL (`https://.../?tag=...`) once, and it will work forever on any phone!

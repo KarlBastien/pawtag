@@ -1,5 +1,5 @@
 /**
- * PATATAG - Core Application Controller
+ * LAZO - Core Application Controller
  * Coordinates:
  * - Dynamic Tag Routing (?tag=TAG_ID) for Public Finders
  * - Owner Authentication & Multi-Pet Management (CRUD)
@@ -344,7 +344,7 @@ function openAddNewPetModal() {
     if (emptyBox) emptyBox.classList.add('hidden');
     if (contentBox) contentBox.classList.remove('hidden');
 
-    document.getElementById('form-pet-tag').value = "PAW-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+    document.getElementById('form-pet-tag').value = "LAZO-" + Math.random().toString(36).substring(2, 8).toUpperCase();
     document.getElementById('form-pet-name').value = "";
     document.getElementById('form-pet-breed').value = "";
     document.getElementById('form-pet-age').value = "";
@@ -904,7 +904,7 @@ function switchAdminTab(tabId) {
 }
 
 function updateHeaderBadge(mode, tagId) {
-    // Keep top bar clean and minimal (Logo + PATATAG only)
+    // Keep top bar clean and minimal (Logo + LAZO only)
     const badge = document.getElementById('header-badge');
     if (badge) badge.innerHTML = '';
 }
