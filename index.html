@@ -52,6 +52,61 @@
 
 <body class="bg-slate-100 text-slate-800 h-full flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white">
 
+    <!-- Fullscreen Walking Dog & Cat Preloader -->
+    <div id="app-preloader" aria-label="Cargando LAZO...">
+        <div class="preloader-card">
+            <svg class="walking-pets-svg" viewBox="0 0 250 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Ground line -->
+                <line class="preloader-ground-line" x1="10" y1="108" x2="240" y2="108" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round" />
+
+                <!-- DOG -->
+                <g class="dog-group">
+                    <path class="dog-leg-bl" d="M43 75 L40 106" stroke="#c2782b" stroke-width="6" stroke-linecap="round" />
+                    <path class="dog-leg-fl" d="M82 75 L80 106" stroke="#c2782b" stroke-width="6" stroke-linecap="round" />
+                    <path class="dog-tail-path" d="M36 60 Q20 50 24 36" stroke="#e08a3c" stroke-width="6" stroke-linecap="round" fill="none" />
+                    <g class="dog-body-group">
+                        <rect x="36" y="52" width="52" height="30" rx="15" fill="#e08a3c" />
+                        <path d="M72 54 L84 38 Q88 32 94 38 L95 56 Z" fill="#e08a3c" />
+                        <circle cx="94" cy="38" r="14" fill="#e08a3c" />
+                        <path d="M96 36 L108 40 Q110 44 105 47 L95 47 Z" fill="#e08a3c" />
+                        <circle cx="108" cy="40" r="2.5" fill="#1e293b" />
+                        <circle cx="98" cy="35" r="2" fill="#1e293b" />
+                        <path d="M86 32 C82 36 82 48 88 50 C91 51 92 42 90 34 Z" fill="#b8691b" />
+                        <path d="M82 48 L92 53" stroke="#4f46e5" stroke-width="3.5" stroke-linecap="round" />
+                        <circle cx="88" cy="56" r="3" fill="#fbbf24" />
+                    </g>
+                    <path class="dog-leg-br" d="M48 75 L52 106" stroke="#e08a3c" stroke-width="6" stroke-linecap="round" />
+                    <path class="dog-leg-fr" d="M88 75 L92 106" stroke="#e08a3c" stroke-width="6" stroke-linecap="round" />
+                </g>
+
+                <!-- CAT -->
+                <g class="cat-group">
+                    <path class="cat-leg-bl" d="M168 80 L165 106" stroke="#334155" stroke-width="4.5" stroke-linecap="round" />
+                    <path class="cat-leg-fl" d="M202 80 L200 106" stroke="#334155" stroke-width="4.5" stroke-linecap="round" />
+                    <path class="cat-tail-path" d="M164 68 Q150 60 152 42 Q154 32 160 30" stroke="#475569" stroke-width="4" stroke-linecap="round" fill="none" />
+                    <g class="cat-body-group">
+                        <rect x="162" y="60" width="42" height="24" rx="12" fill="#475569" />
+                        <path d="M192 62 L200 48 Q204 44 208 48 L208 65 Z" fill="#475569" />
+                        <circle cx="208" cy="48" r="11" fill="#475569" />
+                        <polygon points="202,40 206,30 210,39" fill="#475569" />
+                        <polygon points="210,39 214,31 217,41" fill="#475569" />
+                        <polygon points="204,39 206,34 208,39" fill="#f472b6" />
+                        <circle cx="216" cy="49" r="1.5" fill="#f472b6" />
+                        <ellipse cx="211" cy="46" rx="1.5" ry="2" fill="#34d399" />
+                        <line x1="214" y1="50" x2="222" y2="49" stroke="#94a3b8" stroke-width="1" />
+                        <line x1="214" y1="52" x2="221" y2="54" stroke="#94a3b8" stroke-width="1" />
+                        <path d="M199 56 L207 59" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" />
+                    </g>
+                    <path class="cat-leg-br" d="M174 80 L178 106" stroke="#475569" stroke-width="4.5" stroke-linecap="round" />
+                    <path class="cat-leg-fr" d="M208 80 L212 106" stroke="#475569" stroke-width="4.5" stroke-linecap="round" />
+                </g>
+            </svg>
+
+            <h1 class="preloader-brand-title">LAZO</h1>
+            <p class="preloader-tagline">Cargando...</p>
+        </div>
+    </div>
+
     <!-- Top Navigation Header: Minimal Logo + Brand -->
     <header class="bg-indigo-600 text-white shadow-sm sticky top-0 z-40 no-print">
         <div class="max-w-5xl mx-auto px-3 sm:px-4 h-14 flex items-center justify-between">

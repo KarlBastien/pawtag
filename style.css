@@ -16,6 +16,138 @@ body {
     overflow-x: hidden;
 }
 
+/* Prevent Flash of Unstyled Content (FOUC) */
+.hidden, [hidden] {
+    display: none !important;
+}
+
+/* ==============================================================
+   LAZO Fullscreen Preloader - Animated Dog & Cat Walking
+   ============================================================== */
+#app-preloader {
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s ease;
+}
+
+#app-preloader.preloader-hidden {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+.preloader-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 1.5rem;
+}
+
+.walking-pets-svg {
+    width: 250px;
+    height: 120px;
+    max-width: 80vw;
+    overflow: visible;
+}
+
+/* Keyframes for Walking Animation */
+@keyframes dogBob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+
+@keyframes catBob {
+    0%, 100% { transform: translateY(-1px); }
+    50% { transform: translateY(-5px); }
+}
+
+@keyframes legSwing1 {
+    0%, 100% { transform: rotate(-18deg); }
+    50% { transform: rotate(18deg); }
+}
+
+@keyframes legSwing2 {
+    0%, 100% { transform: rotate(18deg); }
+    50% { transform: rotate(-18deg); }
+}
+
+@keyframes dogTailWag {
+    0%, 100% { transform: rotate(-12deg); }
+    50% { transform: rotate(16deg); }
+}
+
+@keyframes catTailSwish {
+    0%, 100% { transform: rotate(-8deg); }
+    50% { transform: rotate(14deg); }
+}
+
+@keyframes groundSlide {
+    0% { stroke-dashoffset: 0; }
+    100% { stroke-dashoffset: 40; }
+}
+
+@keyframes pulseGlow {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
+/* Preloader Animation Classes */
+.dog-body-group {
+    animation: dogBob 0.6s ease-in-out infinite;
+    transform-origin: center bottom;
+}
+
+.cat-body-group {
+    animation: catBob 0.6s ease-in-out infinite 0.15s;
+    transform-origin: center bottom;
+}
+
+.dog-leg-bl { transform-origin: 43px 75px; animation: legSwing2 0.6s ease-in-out infinite; }
+.dog-leg-fl { transform-origin: 82px 75px; animation: legSwing1 0.6s ease-in-out infinite; }
+.dog-leg-br { transform-origin: 48px 75px; animation: legSwing1 0.6s ease-in-out infinite; }
+.dog-leg-fr { transform-origin: 88px 75px; animation: legSwing2 0.6s ease-in-out infinite; }
+
+.cat-leg-bl { transform-origin: 168px 80px; animation: legSwing1 0.6s ease-in-out infinite 0.1s; }
+.cat-leg-fl { transform-origin: 202px 80px; animation: legSwing2 0.6s ease-in-out infinite 0.1s; }
+.cat-leg-br { transform-origin: 174px 80px; animation: legSwing2 0.6s ease-in-out infinite 0.1s; }
+.cat-leg-fr { transform-origin: 208px 80px; animation: legSwing1 0.6s ease-in-out infinite 0.1s; }
+
+.dog-tail-path { transform-origin: 36px 60px; animation: dogTailWag 0.3s ease-in-out infinite alternate; }
+.cat-tail-path { transform-origin: 164px 68px; animation: catTailSwish 0.8s ease-in-out infinite alternate; }
+
+.preloader-ground-line {
+    stroke-dasharray: 8 12;
+    animation: groundSlide 0.6s linear infinite;
+}
+
+.preloader-brand-title {
+    font-size: 1.25rem;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    color: #4338ca;
+    margin-top: 1rem;
+    text-transform: uppercase;
+}
+
+.preloader-tagline {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 600;
+    margin-top: 0.25rem;
+    letter-spacing: 0.05em;
+    animation: pulseGlow 1.4s ease-in-out infinite;
+}
+
 /* Responsive safeguards for narrow screens (<= 320px) */
 @media (max-width: 360px) {
     .xs-full-width {

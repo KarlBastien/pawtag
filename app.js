@@ -12,11 +12,33 @@ let currentScannedPet = null; // The pet being viewed by a finder
 let activeAdminPet = null;    // The pet currently selected in owner dashboard
 let ownerPetsList = [];       // List of all pets owned by logged-in user
 
+// Preloader Manager
+function dismissPreloader() {
+    const preloader = document.getElementById('app-preloader');
+    if (!preloader || preloader.classList.contains('preloader-hidden')) return;
+    preloader.classList.add('preloader-hidden');
+    setTimeout(() => {
+        if (preloader && preloader.parentNode) {
+            preloader.parentNode.removeChild(preloader);
+        }
+    }, 450);
+}
+
+// Safety timeout: Ensure preloader always dismisses even on slow or offline connections
+setTimeout(dismissPreloader, 2500);
+
 // Initialize on Load
 document.addEventListener('DOMContentLoaded', async () => {
     initAuthListeners();
-    await routeApp();
-    registerServiceWorker();
+    try {
+        await routeApp();
+    } catch (err) {
+        console.error("Routing error:", err);
+    } finally {
+        registerServiceWorker();
+        // Give a smooth 400ms transition for a pleasant walking loop before fadeout
+        setTimeout(dismissPreloader, 400);
+    }
 });
 
 // PWA Service Worker
