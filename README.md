@@ -52,8 +52,7 @@ There are three main hardware reasons:
 
 ## 🚀 Live Production Deployment
 
-- 🌐 **Primary Live URL:** [https://lazo.krealo.online/](https://lazo.krealo.online/)
-- 🌐 **Alternative Aliases:** [https://patatag.krealo.online/](https://patatag.krealo.online/) | [https://pawtag.krealo.online/](https://pawtag.krealo.online/)
+- 🌐 **Live URL:** [https://lazo.krealo.online/](https://lazo.krealo.online/)
 - 🔗 **GitHub Repository:** [https://github.com/KarlBastien/pawtag](https://github.com/KarlBastien/pawtag)
 
 ### Quick Test Links:
