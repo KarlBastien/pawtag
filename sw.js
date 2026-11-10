@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lazo-v2.2.0';
+const CACHE_NAME = 'lazo-v2.3.0';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -6,6 +6,7 @@ const ASSETS_TO_CACHE = [
   './db.js',
   './app.js',
   './manifest.json',
+  './icons/lazo-logo.png',
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png'

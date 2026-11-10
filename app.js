@@ -167,7 +167,7 @@ function renderFinderCard(pet) {
             rewardBox.classList.add('hidden');
         }
     } else {
-        headerBanner.className = "bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 text-white p-6 text-center relative overflow-hidden shadow-xl";
+        headerBanner.className = "bg-lazo-gradient text-white p-6 text-center relative overflow-hidden shadow-xl";
         statusBadge.className = "inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500 text-white shadow-md";
         statusBadge.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>Mascota Segura</span>`;
         lostAlertBox.classList.add('hidden');
@@ -180,7 +180,7 @@ function shareFinderLocation() {
     if (!currentScannedPet) return;
     const feedback = document.getElementById('finder-gps-feedback');
     feedback.classList.remove('hidden');
-    feedback.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5 text-indigo-600"></i> Obteniendo ubicación GPS precisa...`;
+    feedback.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5 text-lazo-coral"></i> Obteniendo ubicación GPS precisa...`;
 
     if (!('geolocation' in navigator)) {
         feedback.innerHTML = `<div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs">Tu navegador no soporta geolocalización.</div>`;
@@ -519,7 +519,7 @@ async function writeActivePetToNfc() {
                     <button onclick="copyText('nfc-target-url')" class="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded font-sans font-bold text-[10px] shrink-0">Copiar</button>
                 </div>
                 <div class="pt-1">
-                    <button onclick="openNfcTroubleshootModal()" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition">
+                    <button onclick="openNfcTroubleshootModal()" class="w-full py-2 btn-lazo-primary text-white rounded-xl font-bold transition">
                         Ver Guía Paso a Paso para iPhone y Android
                     </button>
                 </div>
@@ -555,8 +555,8 @@ async function writeActivePetToNfc() {
 
         statusBox.classList.remove('hidden');
         statusBox.innerHTML = `
-            <div class="p-4 bg-indigo-50 border border-indigo-200 rounded-2xl text-indigo-900 text-xs text-center space-y-3">
-                <i class="fa-solid fa-wifi text-3xl text-indigo-600 animate-pulse"></i>
+            <div class="p-4 bg-orange-50 border border-orange-200 rounded-2xl text-slate-800 text-xs text-center space-y-3">
+                <i class="fa-solid fa-wifi text-3xl text-lazo-coral animate-pulse"></i>
                 <div>
                     <p class="font-bold text-sm">Esperando medalla NFC...</p>
                     <p class="text-slate-600 mt-1">Apoyá la medalla firmemente contra la parte trasera de tu teléfono (junto a las cámaras o en el centro).</p>
@@ -598,7 +598,7 @@ async function writeActivePetToNfc() {
             <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-xs space-y-2">
                 <p class="font-bold"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i> No se pudo grabar el chip: ${err.message}</p>
                 <p class="text-[11px] text-slate-600">Verificá que el NFC de tu teléfono esté encendido en Ajustes y que la funda del celular no sea metálica o magnética.</p>
-                <button onclick="openNfcTroubleshootModal()" class="text-indigo-600 font-bold underline text-[11px]">
+                <button onclick="openNfcTroubleshootModal()" class="text-lazo-coral font-bold underline text-[11px]">
                     Ver soluciones frecuentes
                 </button>
             </div>
@@ -645,7 +645,7 @@ async function renderScanLogs(tagId) {
             div.className = "flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs";
             div.innerHTML = `
                 <div class="flex items-center space-x-3">
-                    <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                    <div class="w-8 h-8 rounded-full bg-orange-100 text-lazo-coral flex items-center justify-center shrink-0">
                         <i class="fa-solid fa-location-dot text-xs"></i>
                     </div>
                     <div>
@@ -653,7 +653,7 @@ async function renderScanLogs(tagId) {
                         <span class="text-[10px] text-slate-400">${escapeHtml(log.method || 'NFC')} • ${new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                 </div>
-                ${log.coords ? `<a href="https://maps.google.com/?q=${log.coords}" target="_blank" class="px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-lg font-bold text-[10px]">Ver mapa</a>` : ''}
+                ${log.coords ? `<a href="https://maps.google.com/?q=${log.coords}" target="_blank" class="px-2.5 py-1 bg-orange-50 text-lazo-coral rounded-lg font-bold text-[10px]">Ver mapa</a>` : ''}
             `;
             list.appendChild(div);
         });
@@ -766,8 +766,8 @@ function closeAuthModal() {
 
 function switchAuthTab(type) {
     const isLogin = type === 'login';
-    document.getElementById('auth-tab-login').className = isLogin ? "flex-1 py-2 font-bold text-xs border-b-2 border-indigo-600 text-indigo-600" : "flex-1 py-2 font-medium text-xs text-slate-400";
-    document.getElementById('auth-tab-signup').className = !isLogin ? "flex-1 py-2 font-bold text-xs border-b-2 border-indigo-600 text-indigo-600" : "flex-1 py-2 font-medium text-xs text-slate-400";
+    document.getElementById('auth-tab-login').className = isLogin ? "flex-1 py-2 font-bold text-xs border-b-2 border-lazo-coral text-lazo-coral" : "flex-1 py-2 font-medium text-xs text-slate-400";
+    document.getElementById('auth-tab-signup').className = !isLogin ? "flex-1 py-2 font-bold text-xs border-b-2 border-lazo-coral text-lazo-coral" : "flex-1 py-2 font-medium text-xs text-slate-400";
     document.getElementById('auth-signup-fields').classList.toggle('hidden', isLogin);
     document.getElementById('auth-submit-btn-text').textContent = isLogin ? "Ingresar a mi Cuenta" : "Crear mi Cuenta";
     document.getElementById('auth-form').dataset.mode = type;
@@ -842,7 +842,7 @@ function openFeatureInfoModal(tab) {
     const desc = document.getElementById('feature-info-desc');
 
     if (tab === 'profile') {
-        icon.className = "w-16 h-16 rounded-3xl mx-auto flex items-center justify-center text-3xl shadow-sm bg-indigo-50 text-indigo-600";
+        icon.className = "w-16 h-16 rounded-3xl mx-auto flex items-center justify-center text-3xl shadow-sm bg-orange-50 text-lazo-coral";
         icon.innerHTML = `<i class="fa-solid fa-dog"></i>`;
         title.textContent = "Ficha Digital de Mascota";
         desc.textContent = "La ficha almacena el nombre, foto, teléfonos de contacto, WhatsApp directo, clínica veterinaria y notas médicas de tu perro. Cuando alguien escanee su medalla, verá estos datos al instante para ayudarte a recuperarlo.";
@@ -902,7 +902,7 @@ function switchAdminTab(tabId) {
             ['dashboard', 'profile', 'nfc', 'qr'].forEach(t => {
                 const navBtn = document.getElementById(`nav-btn-${t}`);
                 if (navBtn) {
-                    navBtn.classList.toggle('text-indigo-600', t === 'dashboard');
+                    navBtn.classList.toggle('text-lazo-coral', t === 'dashboard');
                     navBtn.classList.toggle('text-slate-400', t !== 'dashboard');
                 }
             });
@@ -918,7 +918,7 @@ function switchAdminTab(tabId) {
         if (tabEl) tabEl.classList.toggle('hidden', t !== tabId);
         const navBtn = document.getElementById(`nav-btn-${t}`);
         if (navBtn) {
-            navBtn.classList.toggle('text-indigo-600', t === tabId);
+            navBtn.classList.toggle('text-lazo-coral', t === tabId);
             navBtn.classList.toggle('text-slate-400', t !== tabId);
         }
     });

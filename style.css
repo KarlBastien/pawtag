@@ -1,4 +1,17 @@
 /* LAZO Stylesheet - No inline styles */
+:root {
+    --lazo-orange: #F4913F;
+    --lazo-coral: #EE673C;
+    --lazo-rose: #EB5D85;
+    --lazo-magenta: #E73E96;
+    --lazo-dark: #0F172A;
+    --lazo-gradient: linear-gradient(135deg, #F4913F 0%, #EE673C 35%, #EB5D85 70%, #E73E96 100%);
+    --lazo-gradient-hover: linear-gradient(135deg, #E2802E 0%, #DD582D 35%, #D84D76 70%, #D42E86 100%);
+    --lazo-gradient-soft: linear-gradient(135deg, #FFF7ED 0%, #FFF1F2 50%, #FDF2F8 100%);
+    --lazo-shadow: 0 4px 16px rgba(238, 103, 60, 0.28);
+    --lazo-shadow-hover: 0 8px 24px rgba(231, 62, 150, 0.36);
+}
+
 html {
     scroll-behavior: smooth;
     box-sizing: border-box;
@@ -19,6 +32,94 @@ body {
 /* Prevent Flash of Unstyled Content (FOUC) */
 .hidden, [hidden] {
     display: none !important;
+}
+
+/* ==============================================================
+   LAZO Brand Utility Classes (No Inline Styles)
+   ============================================================== */
+.bg-lazo-gradient {
+    background: var(--lazo-gradient) !important;
+}
+
+.bg-lazo-soft {
+    background: var(--lazo-gradient-soft) !important;
+}
+
+.text-lazo-gradient {
+    background: var(--lazo-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.text-lazo-coral {
+    color: var(--lazo-coral) !important;
+}
+
+.text-lazo-magenta {
+    color: var(--lazo-magenta) !important;
+}
+
+.border-lazo-coral {
+    border-color: var(--lazo-coral) !important;
+}
+
+.border-lazo-soft {
+    border-color: #FED7AA !important;
+}
+
+.btn-lazo-primary {
+    background: var(--lazo-gradient) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--lazo-shadow);
+}
+
+.btn-lazo-primary:hover {
+    background: var(--lazo-gradient-hover) !important;
+    transform: translateY(-1px);
+    box-shadow: var(--lazo-shadow-hover);
+}
+
+.btn-lazo-primary:active {
+    transform: translateY(0);
+}
+
+.btn-lazo-secondary {
+    background: #ffffff !important;
+    color: var(--lazo-coral) !important;
+    border: 1.5px solid #FED7AA !important;
+    font-weight: 700;
+    transition: all 0.2s ease;
+}
+
+.btn-lazo-secondary:hover {
+    border-color: var(--lazo-coral) !important;
+    background: #FFF7ED !important;
+    transform: translateY(-1px);
+}
+
+.badge-lazo {
+    background: var(--lazo-gradient-soft);
+    color: var(--lazo-coral);
+    border: 1px solid #FED7AA;
+}
+
+.badge-lazo-solid {
+    background: var(--lazo-gradient);
+    color: #ffffff;
+}
+
+.card-lazo-feature {
+    background: #ffffff;
+    border: 1px solid #FED7AA;
+    border-radius: 1.25rem;
+    transition: all 0.2s ease;
+}
+
+.card-lazo-feature:hover {
+    border-color: var(--lazo-coral);
+    box-shadow: 0 10px 24px rgba(238, 103, 60, 0.12);
 }
 
 /* ==============================================================
@@ -134,7 +235,9 @@ body {
     font-size: 1.25rem;
     font-weight: 900;
     letter-spacing: 0.15em;
-    color: #4338ca;
+    background: var(--lazo-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
     margin-top: 1rem;
     text-transform: uppercase;
 }
