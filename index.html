@@ -62,7 +62,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=2.4.0">
+    <link rel="stylesheet" href="style.css?v=2.5.0">
 </head>
 
 <body class="bg-slate-100 text-slate-800 h-full flex flex-col font-sans antialiased selection:bg-pink-500 selection:text-white">
@@ -83,8 +83,8 @@
         </div>
     </div>
 
-    <!-- Top Navigation Header: Centered 5rem Logo Without Text -->
-    <header class="bg-white/95 backdrop-blur-md text-slate-900 border-b border-orange-100 shadow-sm sticky top-0 z-40 no-print">
+    <!-- Top Navigation Header: Centered 5rem Logo Without Text (Glassmorphism) -->
+    <header class="glassmorphic-top text-slate-900 sticky top-0 z-40 no-print">
         <div class="max-w-5xl mx-auto header-container">
             <a href="./" class="header-logo-link" aria-label="LAZO Inicio">
                 <img src="icons/lazo-logo.png" alt="LAZO" class="header-logo-img">
@@ -240,13 +240,9 @@
         <!-- VIEW 2: PORTAL LANDING VIEW (When visiting root without tag) -->
         <!-- =============================================================== -->
         <div id="view-portal" class="max-w-2xl mx-auto space-y-8 py-4 sm:py-6 animate-in fade-in duration-200">
-            <!-- Hero with Official Logo -->
-            <div class="text-center space-y-3 pt-2">
-                <div class="w-20 h-20 mx-auto flex items-center justify-center">
-                    <img src="icons/lazo-logo.png" alt="LAZO" class="w-full h-full object-contain drop-shadow-md">
-                </div>
-                <h2 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">LAZO</h2>
-                <p class="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+            <!-- Hero Value Proposition (Only Single Header Logo) -->
+            <div class="text-center pt-2 pb-1">
+                <p class="hero-tagline-white max-w-md mx-auto">
                     Red inteligente de rescate e identificación de mascotas mediante medallas NFC y códigos QR. Sin aplicaciones obligatorias.
                 </p>
             </div>
@@ -267,9 +263,9 @@
 
             <!-- REA Feature 1: How it Works in 3 Steps -->
             <div class="space-y-4">
-                <div class="text-center">
-                    <h3 class="text-lg font-black text-slate-900">¿Cómo funciona LAZO?</h3>
-                    <p class="text-xs text-slate-500">Tres pasos simples para proteger a tu mascota para siempre.</p>
+                <div class="text-center space-y-1">
+                    <h3 class="section-title-white">¿Cómo funciona LAZO?</h3>
+                    <p class="section-subtitle-white">Tres pasos simples para proteger a tu mascota para siempre.</p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
                     <div class="card-lazo-feature p-4 text-center space-y-2">
@@ -678,8 +674,8 @@
 
     </main>
 
-    <!-- Bottom Navigation Bar -->
-    <nav id="bottom-nav" class="bg-white border-t border-slate-200 fixed bottom-0 left-0 right-0 z-30 shadow-lg no-print">
+    <!-- Bottom Navigation Bar (Glassmorphic) -->
+    <nav id="bottom-nav" class="glassmorphic-bottom fixed bottom-0 left-0 right-0 z-30 no-print">
         <div class="max-w-md mx-auto flex justify-around py-2">
             <button onclick="handleBottomNavClick('dashboard')" id="nav-btn-dashboard" class="flex flex-col items-center py-1 px-3 text-lazo-coral transition">
                 <i class="fa-solid fa-house-chimney text-base"></i>
@@ -812,8 +808,8 @@
     </div>
 
     <!-- LAZO Application Logic -->
-    <script src="db.js?v=2.4.0"></script>
-    <script src="app.js?v=2.4.0"></script>
+    <script src="db.js?v=2.5.0"></script>
+    <script src="app.js?v=2.5.0"></script>
 </body>
 
 </html>
