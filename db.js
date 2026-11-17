@@ -183,6 +183,50 @@ class LazoDB {
         return res && res.success;
     }
 
+    // CLAIM: Activate Unclaimed Tag with Secret PIN
+    async claimTag(tagId, activationCode, petData) {
+        if (!this.currentUser) throw new Error("Debés iniciar sesión o registrarte para activar tu collar.");
+        const normalized = tagId.trim().toUpperCase();
+        const cleanPin = (activationCode || '').trim().toUpperCase();
+
+        const res = await this.request('claim_tag', 'POST', {
+            tagId: normalized,
+            activationCode: cleanPin,
+            pet: petData
+        });
+
+        if (!res || !res.success) {
+            throw new Error((res && res.error) ? res.error : 'No se pudo activar el collar.');
+        }
+        return res.data;
+    }
+
+    // OWNER / DEMO: Reformat / Reset Tag back to Unclaimed
+    async resetTag(tagId) {
+        if (!this.currentUser) throw new Error("Debés iniciar sesión para reformatear una medalla.");
+        const normalized = tagId.trim().toUpperCase();
+
+        const res = await this.request('reset_tag', 'POST', { tagId: normalized });
+        if (!res || !res.success) {
+            throw new Error((res && res.error) ? res.error : 'No se pudo reformatear la medalla.');
+        }
+        return res.data;
+    }
+
+    // OWNER: Get Tag Secret PIN
+    async getTagPin(tagId) {
+        if (!this.currentUser) return null;
+        const normalized = tagId.trim().toUpperCase();
+
+        try {
+            const res = await this.request(`get_tag_pin&tagId=${encodeURIComponent(normalized)}`);
+            if (res && res.success && res.data) return res.data;
+            return null;
+        } catch (e) {
+            return null;
+        }
+    }
+
     // PUBLIC: Log Scan or GPS Ping
     async logScanEvent(tagId, logData) {
         const payload = {

@@ -26,6 +26,13 @@ There are three main hardware reasons:
    - Make sure NFC is toggled ON under `Settings > Connected devices > NFC`.
    - The NFC antenna is usually near the camera module.
 
+### 4. Retail Security: Can shop visitors activate a collar before buying it?
+**No.** Every LAZO tag is sold pre-encoded with its URL, but is protected by a **6-character Secret Activation Code (PIN)** printed inside the packaging or behind a scratch-off sticker:
+- When a shop visitor taps the collar, the PWA opens the **Collar Activation Screen** requiring the secret PIN.
+- Without opening the sealed packaging, a visitor cannot claim or tamper with the tag.
+- Once purchased, the buyer enters the PIN once, sets up their pet profile, and the tag is permanently locked to their account.
+- In the owner dashboard, you can click **"Reformatear Medalla Demo"** at any time to return a tag to its unactivated state with a fresh PIN for re-testing.
+
 ---
 
 ## ✨ Features

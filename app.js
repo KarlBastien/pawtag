@@ -99,6 +99,12 @@ async function loadFinderViewForTag(tagId) {
             return;
         }
 
+        // If tag is not yet activated/claimed, show the Claim View
+        if (pet.status === 'unclaimed') {
+            loadClaimViewForTag(tagId);
+            return;
+        }
+
         currentScannedPet = pet;
         renderFinderCard(pet);
         content.classList.remove('hidden');
@@ -232,6 +238,172 @@ function shareFinderLocation() {
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
+}
+
+// -------------------------------------------------------------
+// 1B. CLAIM & ACTIVATION (When scanning an unclaimed collar tag)
+// -------------------------------------------------------------
+let currentClaimTagId = null;
+
+function loadClaimViewForTag(tagId) {
+    currentClaimTagId = tagId;
+    showView('view-claim');
+    updateHeaderBadge('claim', tagId);
+    syncHeaderAuthUI();
+
+    const tagPill = document.getElementById('claim-tag-pill');
+    if (tagPill) tagPill.textContent = tagId;
+
+    const pinInput = document.getElementById('claim-pin-input');
+    if (pinInput) pinInput.value = '';
+
+    const errBox = document.getElementById('claim-error-box');
+    if (errBox) errBox.classList.add('hidden');
+
+    checkClaimAuthStatus();
+}
+
+function checkClaimAuthStatus() {
+    const user = window.pawDB.currentUser;
+    const loggedInBox = document.getElementById('claim-auth-logged-in');
+    const loggedOutBox = document.getElementById('claim-auth-logged-out');
+    const emailEl = document.getElementById('claim-user-email');
+
+    if (user && user.email) {
+        if (loggedInBox) loggedInBox.classList.remove('hidden');
+        if (loggedOutBox) loggedOutBox.classList.add('hidden');
+        if (emailEl) emailEl.textContent = user.email;
+    } else {
+        if (loggedInBox) loggedInBox.classList.add('hidden');
+        if (loggedOutBox) loggedOutBox.classList.remove('hidden');
+    }
+}
+
+async function submitTagClaim() {
+    if (!currentClaimTagId) return;
+
+    const pinInput = document.getElementById('claim-pin-input');
+    const pin = (pinInput ? pinInput.value : '').trim().toUpperCase();
+    const errBox = document.getElementById('claim-error-box');
+    const errText = document.getElementById('claim-error-text');
+    const btn = document.getElementById('btn-submit-claim');
+
+    const showError = (msg) => {
+        if (errBox && errText) {
+            errText.textContent = msg;
+            errBox.classList.remove('hidden');
+        }
+        triggerToast(msg, "error");
+    };
+
+    if (!pin) {
+        showError("Por favor ingresá el Código Secreto de Activación (PIN) de la caja.");
+        if (pinInput) pinInput.focus();
+        return;
+    }
+
+    // Step 1: Ensure user is authenticated
+    let user = window.pawDB.currentUser;
+    if (!user) {
+        const nameInput = document.getElementById('claim-owner-name');
+        const emailInput = document.getElementById('claim-owner-email');
+        const passInput = document.getElementById('claim-owner-pass');
+
+        const name = (nameInput ? nameInput.value : '').trim();
+        const email = (emailInput ? emailInput.value : '').trim().toLowerCase();
+        const pass = (passInput ? passInput.value : '');
+
+        if (!email || !pass) {
+            showError("Ingresá tu correo y contraseña para crear tu cuenta de dueño.");
+            return;
+        }
+        if (pass.length < 4) {
+            showError("La contraseña debe tener al menos 4 caracteres.");
+            return;
+        }
+
+        try {
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Creando cuenta...`;
+            }
+            user = await window.pawDB.signUp(email, pass, name || 'Dueño');
+        } catch (authErr) {
+            // If already registered, attempt login
+            try {
+                user = await window.pawDB.signIn(email, pass);
+            } catch (loginErr) {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-solid fa-shield-cat text-lg mr-2"></i> Activar Collar y Proteger a mi Mascota`;
+                }
+                showError(authErr.message || loginErr.message);
+                return;
+            }
+        }
+    }
+
+    // Step 2: Validate Pet Fields
+    const petNameInput = document.getElementById('claim-pet-name');
+    const petPhoneInput = document.getElementById('claim-pet-phone');
+    const petBreedInput = document.getElementById('claim-pet-breed');
+    const petNotesInput = document.getElementById('claim-pet-notes');
+
+    const petName = (petNameInput ? petNameInput.value : '').trim();
+    const petPhone = (petPhoneInput ? petPhoneInput.value : '').trim();
+    const petBreed = (petBreedInput ? petBreedInput.value : '').trim();
+    const petNotes = (petNotesInput ? petNotesInput.value : '').trim();
+
+    if (!petName) {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-shield-cat text-lg mr-2"></i> Activar Collar y Proteger a mi Mascota`;
+        }
+        showError("Ingresá el nombre de tu mascota.");
+        if (petNameInput) petNameInput.focus();
+        return;
+    }
+    if (!petPhone) {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-shield-cat text-lg mr-2"></i> Activar Collar y Proteger a mi Mascota`;
+        }
+        showError("Ingresá un teléfono de contacto ante emergencias.");
+        if (petPhoneInput) petPhoneInput.focus();
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Activando collar...`;
+    }
+
+    try {
+        const petPayload = {
+            name: petName,
+            breed: petBreed,
+            phone: petPhone,
+            whatsapp: petPhone,
+            ownerName: user.name || 'Dueño',
+            medicalNotes: petNotes,
+            isLost: false,
+            photo: 'icons/icon-512.png'
+        };
+
+        const claimedPet = await window.pawDB.claimTag(currentClaimTagId, pin, petPayload);
+        triggerToast("🎉 ¡Collar activado exitosamente!", "success");
+
+        // Redirect to live public card
+        setTimeout(() => {
+            window.location.href = `./?tag=${encodeURIComponent(currentClaimTagId)}`;
+        }, 800);
+    } catch (claimErr) {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-shield-cat text-lg mr-2"></i> Activar Collar y Proteger a mi Mascota`;
+        }
+        showError(claimErr.message);
+    }
 }
 
 // -------------------------------------------------------------
@@ -469,7 +641,7 @@ async function deleteActivePet() {
 // -------------------------------------------------------------
 // 3. NFC & QR TOOLS
 // -------------------------------------------------------------
-function renderNfcTools(pet) {
+async function renderNfcTools(pet) {
     const pill = document.getElementById('nfc-support-pill');
     if (!pill) return;
 
@@ -481,6 +653,70 @@ function renderNfcTools(pet) {
 
     const publicUrl = getPetPublicUrl(pet.tagId);
     document.getElementById('nfc-target-url').value = publicUrl;
+
+    // Load tag secret PIN for owner/manager view
+    const pinDisplay = document.getElementById('nfc-tag-pin-display');
+    if (pinDisplay) {
+        pinDisplay.textContent = 'Cargando...';
+        try {
+            const tagInfo = await window.pawDB.getTagPin(pet.tagId);
+            if (tagInfo && tagInfo.activationCode) {
+                pinDisplay.textContent = tagInfo.activationCode;
+            } else {
+                pinDisplay.textContent = '------';
+            }
+        } catch (e) {
+            pinDisplay.textContent = '------';
+        }
+    }
+}
+
+async function handleReformatActiveTag() {
+    if (!activeAdminPet) return;
+    const tagId = activeAdminPet.tagId;
+    const petName = activeAdminPet.name;
+
+    const confirmReset = confirm(
+        `¿Querés reformatear la medalla ${tagId} de ${petName}?\n\n` +
+        `• Se desvinculará a ${petName} de este collar.\n` +
+        `• El tag volverá a estado 'VIRGEN / NO ACTIVADO'.\n` +
+        `• Se generará un nuevo Código Secreto (PIN) para que puedas probar el flujo de activación desde cero con tu celular.`
+    );
+
+    if (!confirmReset) return;
+
+    try {
+        const res = await window.pawDB.resetTag(tagId);
+        triggerToast("🎉 Medalla reformateada con éxito", "success");
+
+        alert(
+            `¡Medalla ${tagId} reformateada!\n\n` +
+            `Nuevo Código Secreto (PIN): ${res.activationCode}\n\n` +
+            `Ahora podés apoyar tu celular en el chip NFC (o abrir el link) para probar la pantalla de activación con este PIN.`
+        );
+
+        // Redirect directly to test the new activation claim screen
+        window.location.href = `./?tag=${encodeURIComponent(tagId)}`;
+    } catch (err) {
+        triggerToast("Error: " + err.message, "error");
+    }
+}
+
+function copyTagPin() {
+    const pinEl = document.getElementById('nfc-tag-pin-display');
+    if (!pinEl) return;
+    const pin = pinEl.textContent.trim();
+    if (!pin || pin === 'Cargando...' || pin === '------') return;
+
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(pin).then(() => {
+            triggerToast("¡PIN copiado al portapapeles!", "success");
+        }).catch(() => {
+            triggerToast("PIN: " + pin, "info");
+        });
+    } else {
+        triggerToast("PIN: " + pin, "info");
+    }
 }
 
 let nfcAbortController = null;
@@ -700,6 +936,9 @@ function initAuthListeners() {
     syncHeaderAuthUI();
     window.onAuthChanged = () => {
         syncHeaderAuthUI();
+        if (typeof checkClaimAuthStatus === 'function') {
+            checkClaimAuthStatus();
+        }
     };
 
     // Photo input listener
@@ -877,7 +1116,7 @@ function closeNfcTroubleshootModal() {
 }
 
 function showView(viewId) {
-    ['view-finder', 'view-admin', 'view-portal'].forEach(id => {
+    ['view-finder', 'view-admin', 'view-portal', 'view-claim'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.toggle('hidden', id !== viewId);
     });
